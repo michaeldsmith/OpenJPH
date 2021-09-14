@@ -95,6 +95,7 @@ namespace ojph {
       OJPH_ERROR(0x030000001, "Unable to open file %s", filename);
     fname = filename;
 
+    // read magic number
     char t[2];
     if (fread(t, 1, 2, fh) != 2)
     {
@@ -102,6 +103,7 @@ namespace ojph {
       OJPH_ERROR(0x030000002, "Error reading file %s", filename);
     }
 
+    // check magic number
     if (t[0] != 'P' || (t[1] != '5' && t[1] != '6'))
     {
       close();
@@ -122,9 +124,11 @@ namespace ojph {
         "must have a .pgm extension fir file %s", filename);
     }
 
+    // set number of components based on file-type
     num_comps = t[1] == '5' ? 1 : 3;
     eat_white_spaces(fh);
 
+    // read width, height and max value in header
     if (fscanf(fh, "%d %d %d", &width, &height, &max_val) != 3)
     {
       close();
@@ -132,11 +136,13 @@ namespace ojph {
     }
     num_ele_per_line = num_comps * width;
     bytes_per_sample = max_val > 255 ? 2 : 1;
+    // set bitdepth based on max value in header
     max_val_num_bits = 32 - count_leading_zeros(max_val);
     bit_depth[2] = bit_depth[1] = bit_depth [0] = max_val_num_bits;
     fgetc(fh);
     start_of_data = ojph_ftell(fh);
 
+    // allocate linebuffer to hold a line of image data
     if (temp_buf_byte_size < num_comps * width * bytes_per_sample)
     {
       if (alloc_p == NULL)
@@ -371,6 +377,461 @@ namespace ojph {
     }
     return 0;
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+ //
+ //
+ //
+ //
+ //
+ ////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_ENABLE_TIFF_SUPPORT
+ /////////////////////////////////////////////////////////////////////////////
+  void tif_in::open(const char* filename)
+  {
+    tiff_handle = NULL;
+    if ((tiff_handle = TIFFOpen(filename, "r")) == NULL)
+      OJPH_ERROR(0x0300000B1, "Unable to open file %s", filename);
+    fname = filename;
+
+    unsigned int tiff_width = 0;
+    unsigned int tiff_height = 0; 
+    TIFFGetField(tiff_handle, TIFFTAG_IMAGEWIDTH, &tiff_width);
+    TIFFGetField(tiff_handle, TIFFTAG_IMAGELENGTH, &tiff_height);
+
+    unsigned short tiff_bits_per_sample = 0;
+    unsigned short tiff_samples_per_pixel = 0;
+    TIFFGetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, &tiff_bits_per_sample);
+    TIFFGetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, &tiff_samples_per_pixel);
+    // some TIFs have tiff_samples_per_pixel=0 when it is a single channel image - set to 1
+    tiff_samples_per_pixel = (tiff_samples_per_pixel < 1) ? 1 : tiff_samples_per_pixel;
+
+    unsigned short tiff_planar_configuration = 0;
+    unsigned short tiff_photometric = 0;
+    TIFFGetField(tiff_handle, TIFFTAG_PLANARCONFIG, &tiff_planar_configuration);
+    TIFFGetField(tiff_handle, TIFFTAG_PHOTOMETRIC, &tiff_photometric);
+
+    planar_configuration = tiff_planar_configuration;
+
+    unsigned short tiff_compression = 0;
+    unsigned int tiff_rows_per_strip = 0;
+    TIFFGetField(tiff_handle, TIFFTAG_COMPRESSION, &tiff_compression);
+    TIFFGetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, &tiff_rows_per_strip);
+
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE)
+    {
+      bytes_per_line = tiff_samples_per_pixel * TIFFScanlineSize(tiff_handle);
+    }
+    else
+    {
+      bytes_per_line = TIFFScanlineSize(tiff_handle);
+    }
+    // allocate linebuffer to hold a line of image data
+    line_buffer = malloc(bytes_per_line);
+    if (NULL == line_buffer)
+      OJPH_ERROR(0x0300000B2, "Unable to allocate %d bytes for line_buffer[] for file %s", bytes_per_line, filename);
+      
+    cur_line = 0;
+
+    // Error on known incompatilbe input formats
+    if( tiff_bits_per_sample != 8 && tiff_bits_per_sample != 16 )
+    {
+      OJPH_ERROR(0x0300000B3, "\nTIFF IO is currently limited to file limited to files with TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16 \ninput file = %s has TIFFTAG_BITSPERSAMPLE=%d", filename, tiff_bits_per_sample);
+    }
+
+    if( TIFFIsTiled( tiff_handle ) )
+    {
+      OJPH_ERROR(0x0300000B4, "\nTIFF IO is currently limited to TIF files without tiles. \nInput file %s has been detected as tiled", filename);
+    }
+
+    if( PHOTOMETRIC_RGB != tiff_photometric && PHOTOMETRIC_MINISBLACK != tiff_photometric )
+    {
+      OJPH_ERROR(0x0300000B5, "\nTIFF IO is currently limited to TIFFTAG_PHOTOMETRIC=PHOTOMETRIC_MINISBLACK=%d and PHOTOMETRIC_RGB=%d. \nInput file %s has been detected TIFFTAG_PHOTOMETRIC=%d", 
+      PHOTOMETRIC_MINISBLACK, PHOTOMETRIC_RGB, filename, tiff_photometric);
+    }
+
+    if( tiff_samples_per_pixel > 4 )
+    {
+      OJPH_ERROR(0x0300000B6, "\nTIFF IO is currently limited to TIFFTAG_SAMPLESPERPIXEL=4 \nInput file %s has been detected with TIFFTAG_SAMPLESPERPIXEL=%d",
+        filename, tiff_samples_per_pixel);
+    }
+
+    // set number of components based on tiff_samples_per_pixel
+    width = tiff_width;
+    height = tiff_height;
+    num_comps = tiff_samples_per_pixel;
+    bytes_per_sample = (tiff_bits_per_sample + 7) / 8;
+    for (int comp_num = 0; comp_num < num_comps; comp_num++)
+      bit_depth[comp_num] = tiff_bits_per_sample;
+
+    // allocate intermediate linebuffers to hold a line of a single component of image data
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE && bytes_per_sample == 1)
+    {
+      line_buffer_for_planar_support_uint8 = (uint8_t*)calloc(width, sizeof(uint8_t));
+      if (NULL == line_buffer_for_planar_support_uint8)
+        OJPH_ERROR(0x0300000B7, "Unable to allocate %d bytes for line_buffer_for_planar_support_uint8[] for file %s", width * sizeof(uint8_t), filename);
+    }
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE && bytes_per_sample == 2)
+    {
+      line_buffer_for_planar_support_uint16 = (uint16_t*)calloc(width, sizeof(uint16_t));
+      if (NULL == line_buffer_for_planar_support_uint16)
+        OJPH_ERROR(0x0300000B8, "Unable to allocate %d bytes for line_buffer_for_planar_support_uint16[] for file %s", width * sizeof(uint16_t), filename);
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void tif_in::set_bit_depth(int num_bit_depths, int* bit_depth)
+  {
+    if (num_bit_depths < 1)
+      OJPH_ERROR(0x030000B9, "one or more bit_depths must be provided");
+    int last_bd_idx = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+      int bd = bit_depth[i < num_bit_depths ? i : last_bd_idx];
+      last_bd_idx += last_bd_idx + 1 < num_bit_depths ? 1 : 0;
+
+      if (bd > 32 || bd < 1)
+      {
+        OJPH_ERROR(0x0300000BA, "bit_depth = %d, this must be an integer from 1-32", bd);
+      }
+      this->bit_depth[i] = bd;
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  int tif_in::read(const line_buf* line, int comp_num)
+  {
+    assert(bytes_per_line != 0 && tiff_handle != 0 && comp_num < num_comps);
+    assert((int)line->size >= width);
+
+    // do a read from the file if this is the first component and therefore the first time trying to access this line
+    if (PLANARCONFIG_SEPARATE == planar_configuration && 0 == comp_num )
+    {
+      for (unsigned short color = 0; color < num_comps; color++)
+      {
+        if (bytes_per_sample == 1)
+        {
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint8, cur_line, color);
+          unsigned int x = color;
+          uint8_t* line_buffer_of_interleaved_components = (uint8_t*)line_buffer;
+          for (int i = 0; i < width; i++, x += num_comps)
+          {
+            line_buffer_of_interleaved_components[x] = line_buffer_for_planar_support_uint8[i];
+          }
+        }
+        else if (bytes_per_sample == 2)
+        {
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_uint16, cur_line, color);
+          unsigned int x = color;
+          uint16_t* line_buffer_of_interleaved_components = (uint16_t*)line_buffer;
+          for (int i = 0; i < width; i++, x += num_comps)
+          {
+            line_buffer_of_interleaved_components[x] = line_buffer_for_planar_support_uint16[i];
+          }
+        }
+      }
+      cur_line++;
+      
+    }
+    else if (planar_configuration == PLANARCONFIG_CONTIG && 0 == comp_num)
+    {
+      TIFFReadScanline(tiff_handle, line_buffer, cur_line++);
+    }
+
+    if (cur_line >= height)
+    {
+      cur_line = 0;
+    }
+
+    if (bytes_per_sample == 1)
+    {
+      const ui8* source_ptr = (ui8*)line_buffer + comp_num;
+      si32* destination_ptr = line->i32;
+      if (bit_depth[comp_num] == 8)
+      {
+        for (int i = width; i > 0; --i, source_ptr += num_comps)
+          *destination_ptr++ = (si32)*source_ptr;
+      }
+      else if (bit_depth[comp_num] < 8)
+      {
+        // read the desired precision from the MSBs
+        const int bits_to_shift = 8 - bit_depth[comp_num];
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        for (int i = width; i > 0; --i, source_ptr += num_comps)
+          *destination_ptr++ = (si32) (((*source_ptr) >> bits_to_shift) & bit_mask);
+      }
+      else if (bit_depth[comp_num] > 8)
+      {
+        const int bits_to_shift = bit_depth[comp_num] - 8;
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        for (int i = width; i > 0; --i, source_ptr += num_comps)
+          *destination_ptr++ = (si32)(((*source_ptr) << bits_to_shift) & bit_mask);
+      }
+    }
+    else if(bytes_per_sample == 2)
+    {
+      if (bit_depth[comp_num] == 16)
+      {
+        const ui16* source_ptr = (ui16*)line_buffer + comp_num;
+        si32* destination_ptr = line->i32;
+        for (int i = width; i > 0; --i, source_ptr += num_comps)
+          *destination_ptr++ = (si32)*source_ptr;
+      }
+      else if (bit_depth[comp_num] < 16)
+      {
+        // read the desired precision from the MSBs
+        const int bits_to_shift = 16 - bit_depth[comp_num];
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        const ui16* source_ptr = (ui16*)line_buffer + comp_num;
+        si32* destination_ptr = line->i32;
+        for (int i = width; i > 0; --i, source_ptr += num_comps)
+          *destination_ptr++ = (si32)(((*source_ptr) >> bits_to_shift) & bit_mask);
+      }
+      else if (bit_depth[comp_num] > 16)
+      {
+        const int bits_to_shift = bit_depth[comp_num] - 16;
+        const int bit_mask = (1 << bit_depth[comp_num]) - 1;
+        const ui16* source_ptr = (ui16*)line_buffer + comp_num;
+        si32* destination_ptr = line->i32;
+        for (int i = width; i > 0; --i, source_ptr += num_comps)
+          *destination_ptr++ = (si32)(((*source_ptr) << bits_to_shift) & bit_mask);
+      }
+      
+    }
+
+    return width;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////////////////////////////////////////////////////////////
+  void tif_out::open(char* filename)
+  {
+    // Error on known incompatilbe output formats
+    bool is_bit_depth_different_across_components = false;
+    unsigned int max_bitdepth = 0;
+    for (unsigned int c = 0; c < num_components; c++)
+    {
+      if (bit_depth_of_data[c] > max_bitdepth)
+        max_bitdepth = bit_depth_of_data[c];
+      if (c > 0)
+      {
+        if (bit_depth_of_data[c] != bit_depth_of_data[c - 1])
+        {
+          is_bit_depth_different_across_components = true;
+        }
+      }
+    }
+    if (max_bitdepth > 16)
+    {
+      OJPH_WARN(0x0300000C2, "TIFF output is currently limited to files with max_bitdepth = 16, the source codestream has max_bitdepth=%d, the decoded data will be truncated to 16 bits", max_bitdepth);
+    }
+    if (num_components > 4)
+    {
+      OJPH_ERROR(0x0300000C3, "TIFF IO is currently limited to files with num_components = 1 to 4, the source codestream has num_components = %d", num_components);
+    }
+
+    assert(tiff_handle == NULL && line_buffer == NULL);
+    if ((tiff_handle = TIFFOpen(filename, "w")) == NULL)
+    {
+      OJPH_ERROR(0x0300000C1, "unable to open file %s for writing", filename);
+    }
+
+    buffer_size = width * num_components * bytes_per_sample;
+    line_buffer = (ui8*)malloc(buffer_size);
+    if (NULL == line_buffer)
+      OJPH_ERROR(0x0300000C4, "Unable to allocate %d bytes for line_buffer[] for file %s", bytes_per_line, filename);
+    
+    filename = filename;
+    cur_line = 0;
+
+    // set tiff fields
+
+    // Write the tiff tags to the file
+    TIFFSetField(tiff_handle, TIFFTAG_IMAGEWIDTH, width);
+    TIFFSetField(tiff_handle, TIFFTAG_IMAGELENGTH, height);
+
+    TIFFSetField(tiff_handle, TIFFTAG_BITSPERSAMPLE, bytes_per_sample * 8);
+    TIFFSetField(tiff_handle, TIFFTAG_SAMPLESPERPIXEL, num_components);
+
+    planar_configuration = PLANARCONFIG_CONTIG;
+    TIFFSetField(tiff_handle, TIFFTAG_PLANARCONFIG, planar_configuration);
+
+    if (num_components == 1)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+    }
+    else if (num_components == 2)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
+      const uint16_t extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; // possible values are EXTRASAMPLE_UNSPECIFIED = 0; EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
+      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, &extra_samples_description);
+    }
+    else if (num_components == 3)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+    }
+    else if (num_components == 4)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+      const uint16_t extra_samples_description[1] = { EXTRASAMPLE_ASSOCALPHA }; // possible values are EXTRASAMPLE_UNSPECIFIED = 0; EXTRASAMPLE_ASSOCALPHA = 1; EXTRASAMPLE_UNASSALPHA = 2;
+      TIFFSetField(tiff_handle, TIFFTAG_EXTRASAMPLES, (uint16_t)1, &extra_samples_description);
+    }
+      
+    TIFFSetField(tiff_handle, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+    TIFFSetField(tiff_handle, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
+    //TIFFSetField(tiff_handle, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_UINT);
+    TIFFSetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, height);
+    
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  void tif_out::configure(ui32 width, ui32 height, int num_components, int* bit_depth)
+  {
+    assert(tiff_handle == NULL); //configure before opening
+
+    this->width = width;
+    this->height = height;
+    this->num_components = num_components;
+    int max_bitdepth = 0;
+    for (int c = 0; c < num_components; c++)
+    {
+      this->bit_depth_of_data[c] = bit_depth[c];
+      if (bit_depth[c] > max_bitdepth)
+        max_bitdepth = bit_depth[c];
+    }
+
+    bytes_per_sample = (max_bitdepth + 7) / 8;
+    if (bytes_per_sample > 2)
+    {
+      //TIFF output is currently limited to files with max_bitdepth = 16, the decoded data will be truncated to 16 bits
+      bytes_per_sample = 2;
+    }
+    samples_per_line = num_components * width;
+    bytes_per_line = (size_t)bytes_per_sample * samples_per_line;
+
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  int tif_out::write(const line_buf* line, int comp_num)
+  {
+    assert(tiff_handle);
+    
+    if (bytes_per_sample == 1)
+    {
+      int max_val = (1 << bit_depth_of_data[comp_num]) - 1;
+      const si32* source_ptr = line->i32;
+      ui8* destination_ptr = line_buffer + comp_num;
+      if (bit_depth_of_data[comp_num] == 8)
+      {
+        for (int i = width; i > 0; --i, destination_ptr += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *source_ptr++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          *destination_ptr = (ui8)val;
+        }
+      }
+      else if (bit_depth_of_data[comp_num] < 8)
+      {
+        const int bits_to_shift = 8 - bit_depth_of_data[comp_num];
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, destination_ptr += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *source_ptr++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          // shift the decoded data so the data's MSB is aligned with the 8 bit MSB
+          *destination_ptr = (ui8)((val & bit_mask) << bits_to_shift);
+        }
+      }
+      else if (bit_depth_of_data[comp_num] > 8)
+      {
+        const int bits_to_shift = bit_depth_of_data[comp_num] - 8;
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, destination_ptr += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *source_ptr++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          // shift the decoded data so the data's MSB is aligned with the 8 bit MSB
+          *destination_ptr = (ui8)((val >> bits_to_shift) & bit_mask);
+        }
+      }
+      
+    }
+    else if(bytes_per_sample == 2)
+    {
+      int max_val = (1 << bit_depth_of_data[comp_num]) - 1;
+      const si32* source_ptr = line->i32;
+      ui16* destination_ptr = (ui16*)line_buffer + comp_num;
+
+      if (bit_depth_of_data[comp_num] == 16)
+      {
+        for (int i = width; i > 0; --i, destination_ptr += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *source_ptr++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+          *destination_ptr = (ui16)val;
+        }
+      }
+      else if (bit_depth_of_data[comp_num] < 16)
+      {
+        const int bits_to_shift = 16 - bit_depth_of_data[comp_num];
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, destination_ptr += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *source_ptr++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+
+          // shift the decoded data so the data's MSB is aligned with the 16 bit MSB
+          *destination_ptr = (ui16)((val & bit_mask) << bits_to_shift);
+        }
+      }
+      else if (bit_depth_of_data[comp_num] > 16)
+      {
+        const int bits_to_shift = bit_depth_of_data[comp_num] - 16;
+        const int bit_mask = (1 << bit_depth_of_data[comp_num]) - 1;
+        for (int i = width; i > 0; --i, destination_ptr += num_components)
+        {
+          // clamp the decoded sample to the allowed range
+          int val = *source_ptr++;
+          val = val >= 0 ? val : 0;
+          val = val <= max_val ? val : max_val;
+
+          // shift the decoded data so the data's MSB is aligned with the 16 bit MSB
+          *destination_ptr = (ui16)((val >> bits_to_shift) & bit_mask);
+        }
+      }
+      
+    }
+      
+    // write scanline when the last component is reached 
+    if (comp_num == num_components-1)
+    {
+      int result = TIFFWriteScanline(tiff_handle, line_buffer,
+        cur_line++);
+      if (result != 1)
+        OJPH_ERROR(0x0300000C4, "error writing to file %s", filename);
+    }
+    return 0;
+  }
+  #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
   ////////////////////////////////////////////////////////////////////////////
   //

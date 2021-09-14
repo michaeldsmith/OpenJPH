@@ -473,7 +473,7 @@ namespace ojph {
       ui8 ms_buf[ms_size];
       const int mel_vlc_size = 3072;     //more than enough
       ui8 mel_vlc_buf[mel_vlc_size];
-      const int mel_size = 128;
+      const int mel_size = 256;
       ui8 *mel_buf = mel_vlc_buf;
       const int vlc_size = mel_vlc_size - mel_size;
       ui8 *vlc_buf = mel_vlc_buf + mel_size;
