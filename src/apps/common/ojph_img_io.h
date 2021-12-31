@@ -49,6 +49,9 @@
   #include "tiffio.h"
 #endif /* OJPH_ENABLE_TIFF_SUPPORT */
 
+
+
+
 namespace ojph {
 
   ////////////////////////////////////////////////////////////////////////////
@@ -70,6 +73,81 @@ namespace ojph {
     virtual ui32 read(const line_buf* line, ui32 comp_num) = 0;
     virtual void close() {}
   };
+
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_ENABLE_PNG_SUPPORT
+  class png_in : public image_in_base
+  {
+  public:
+    png_in() 
+    {
+      fname = NULL;
+      frame_buffer = NULL;
+      line_buffer_ptr = NULL;
+  
+      width = height = num_comps = 0;
+      bytes_per_sample = 0;
+
+      bytes_per_line = 0;
+
+      cur_line = 0;
+
+      bit_depth[3] = bit_depth[2] = bit_depth[1] = bit_depth[0] = 0;
+      is_signed[3] = is_signed[2] = is_signed[1] = is_signed[0] = false;
+      subsampling[3] = subsampling[2] = point(1, 1);
+      subsampling[1] = subsampling[0] = point(1, 1);
+    }
+    virtual ~png_in() 
+    {
+      close();
+      if (frame_buffer)
+        free(frame_buffer);
+    }
+    
+    void open(const char* filename);
+
+    virtual ui32 read(const line_buf* line, ui32 comp_num);
+    
+    void close()
+    {
+      fname = NULL;
+    }
+    size get_size() { return size(width, height); }
+    ui32 get_num_components() { return num_comps; }
+    ui32 get_bit_depth(ui32 comp_num)
+    {
+      assert(comp_num < num_comps); return bit_depth[comp_num];
+    }
+    bool get_is_signed(ui32 comp_num)
+    {
+      assert(comp_num < num_comps); return is_signed[comp_num];
+    }
+    point get_comp_subsampling(ui32 comp_num)
+    {
+      assert(comp_num < num_comps); return subsampling[comp_num];
+    }
+
+  private:
+    const char* fname;
+    void* frame_buffer;
+    void* line_buffer_ptr;
+
+    ui32 width, height;
+    ui32 num_comps;
+    ui32 bytes_per_sample;
+    size_t bytes_per_line;
+    ui32 cur_line;
+    ui32 bit_depth[4];
+    bool is_signed[4];
+    point subsampling[4];
+  };
+#endif /* OJPH_ENABLE_PNG_SUPPORT */
 
   ////////////////////////////////////////////////////////////////////////////
   //

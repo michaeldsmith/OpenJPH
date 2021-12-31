@@ -3,3 +3,5 @@ mytest/*
 others/*
 
 .vscode
+build/*
+bin/*

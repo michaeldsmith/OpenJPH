@@ -44,6 +44,16 @@
 #include "ojph_mem.h"
 #include "ojph_message.h"
 
+#ifdef OJPH_ENABLE_PNG_SUPPORT
+  #define STBI_ONLY_PNG
+  #define STBI_NO_LINEAR
+  #ifdef WIN32
+    #define STBI_NO_SIMD  // define STBI_NO_SIMD together with x86 target instead of x64 as a workaround for windows compile issue : stb_image.h(732,4): error C3861: '__cpuid': identifier not found
+  #endif
+  #define STB_IMAGE_IMPLEMENTATION
+  #include "stb_image.h"
+#endif /* OJPH_ENABLE_PNG_SUPPORT */
+
 namespace ojph {
 
   /////////////////////////////////////////////////////////////////////////////
@@ -78,6 +88,90 @@ namespace ojph {
     }
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  //
+  //
+  //
+  //
+  //
+  ////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_ENABLE_PNG_SUPPORT
+  /////////////////////////////////////////////////////////////////////////////
+  void png_in::open(const char* filename)
+  {
+    fname = filename;
+
+    int is_16_bit = stbi_is_16_bit(fname);
+
+    int cols, rows, components, bitdepth = 0;
+
+    frame_buffer = NULL;
+    if (0 == is_16_bit)
+    {
+      // use 8bit interface
+      frame_buffer = (void*)stbi_load(fname, &cols, &rows, &components, 0);
+      bitdepth = 8;
+    }
+    else
+    {
+      // use 16bit interface
+      frame_buffer = (void*)stbi_load_16(fname, &cols, &rows, &components, 0);
+      bitdepth = 16;
+    }
+
+    this->width = cols;
+    this->height = rows;
+    this->num_comps = components;
+    for (ui32 c = 0; c < num_comps; c++)
+    {
+      this->bit_depth[c] = bitdepth;
+    }
+    bytes_per_sample = (bitdepth + 7) / 8;  
+
+    cur_line = 0;
+
+    return;
+  }
+
+  ui32 png_in::read(const line_buf* line, ui32 comp_num)
+  {
+    if( 0 == comp_num )
+    {
+      // get pointer to current line in the frame buffer
+      const ui32 bytes_per_line = num_comps * width * bytes_per_sample;
+
+      ui8* frame_butter_ptr = (ui8*) frame_buffer;
+      line_buffer_ptr = &(frame_butter_ptr[bytes_per_line * cur_line]);
+
+      cur_line++;
+    }
+    
+    if (cur_line >= height)
+    {
+      cur_line = 0;
+    }
+
+    if (bytes_per_sample == 1)
+    {
+      const ui8* sp = (ui8*)line_buffer_ptr + comp_num;
+      si32* dp = line->i32;
+      for (ui32 i = width; i > 0; --i, sp += num_comps)
+        *dp++ = (si32)*sp;
+    }
+    else
+    {
+      const ui16* sp = (ui16*)line_buffer_ptr + comp_num;
+      si32* dp = line->i32;
+      for (ui32 i = width; i > 0; --i, sp += num_comps)
+        *dp++ = (si32)*sp;
+    }
+
+    return width;
+  }
+
+
+#endif /* OJPH_ENABLE_PNG_SUPPORT */
+  
   ////////////////////////////////////////////////////////////////////////////
   //
   //

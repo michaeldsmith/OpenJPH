@@ -28,6 +28,7 @@ set(OPENJPH_VERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}.${OPENJPH
 option(OJPH_DISABLE_INTEL_SIMD "Disables the use of SIMD instructions and associated files" OFF)
 option(BUILD_SHARED_LIBS "Shared Libraries" ON)
 option(OJPH_ENABLE_TIFF_SUPPORT "Enables input and output support for TIFF files" ON)
+option(OJPH_ENABLE_PNG_SUPPORT "Enables input support for PNG files" ON)
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
@@ -74,6 +75,15 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
   endif( TIFF_FOUND )
 
 endif() 
+############################################################
+if( OJPH_ENABLE_PNG_SUPPORT )
+  #include_directories(${CMAKE_SOURCE_DIR}/src/external) 
+  if (MSVC)
+		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_PNG_SUPPORT\"")
+	  else()
+		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DOJPH_ENABLE_PNG_SUPPORT")
+	  endif()
+endif()
 ############################################################
 
 include_directories(src/core/common)

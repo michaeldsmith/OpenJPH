@@ -463,8 +463,12 @@ int main(int argc, char * argv[]) {
   if (argc <= 1) {
     std::cout <<
     "\nThe following arguments are necessary:\n"
-#ifdef OJPH_ENABLE_TIFF_SUPPORT
+#if defined (OJPH_ENABLE_TIFF_SUPPORT) && !defined (OJPH_ENABLE_PNG_SUPPORT)  
     " -i input file name (either pgm, ppm, tif(f), or raw(yuv))\n"
+#elif !defined (OJPH_ENABLE_TIFF_SUPPORT) && defined (OJPH_ENABLE_PNG_SUPPORT)  
+      " -i input file name (either pgm, png, ppm, or raw(yuv))\n"
+#elif defined (OJPH_ENABLE_TIFF_SUPPORT) && defined (OJPH_ENABLE_PNG_SUPPORT)  
+      " -i input file name (either pgm, png, ppm, tif(f) or raw(yuv))\n"
 #else
     " -i input file name (either pgm, ppm, or raw(yuv))\n"
 #endif // !OJPH_ENABLE_TIFF_SUPPORT
@@ -538,7 +542,9 @@ int main(int argc, char * argv[]) {
   try
   {
     ojph::codestream codestream;
-
+#ifdef OJPH_ENABLE_PNG_SUPPORT
+    ojph::png_in png;
+#endif
     ojph::ppm_in ppm;
     ojph::yuv_in yuv;
 #ifdef OJPH_ENABLE_TIFF_SUPPORT
@@ -605,6 +611,59 @@ int main(int argc, char * argv[]) {
 
         base = &ppm;
       }
+
+#ifdef OJPH_ENABLE_PNG_SUPPORT
+      else if (strncmp(".png", v, 4) == 0)
+      {
+        png.open(input_filename);
+        ojph::param_siz siz = codestream.access_siz();
+        siz.set_image_extent(ojph::point(image_offset.x + png.get_size().w,
+          image_offset.y + png.get_size().h));
+        ojph::ui32 num_comps = png.get_num_components();
+        siz.set_num_components(num_comps);
+        for (ojph::ui32 c = 0; c < num_comps; ++c)
+          siz.set_component(c, png.get_comp_subsampling(c),
+            png.get_bit_depth(c), png.get_is_signed(c));
+        siz.set_image_offset(image_offset);
+        siz.set_tile_size(tile_size);
+        siz.set_tile_offset(tile_offset);
+
+        ojph::param_cod cod = codestream.access_cod();
+        cod.set_num_decomposition(num_decompositions);
+        cod.set_block_dims(block_size.w, block_size.h);
+        if (num_precincts != -1)
+          cod.set_precinct_size(num_precincts, precinct_size);
+        cod.set_progression_order(prog_order);
+        if (employ_color_transform == -1 && num_comps >= 3)
+          cod.set_color_transform(true);
+        else
+          cod.set_color_transform(employ_color_transform == 1);
+        cod.set_reversible(reversible);
+        if (!reversible && quantization_step != -1)
+          codestream.access_qcd().set_irrev_quant(quantization_step);
+        codestream.set_planar(false);
+        if (profile_string[0] != '\0')
+          codestream.set_profile(profile_string);
+
+        if (dims.w != 0 || dims.h != 0)
+          OJPH_WARN(0x01000061,
+            "-dims option is not needed and was not used\n");
+        if (num_components != 0)
+          OJPH_WARN(0x01000062,
+            "-num_comps is not needed and was not used\n");
+        if (is_signed[0] != -1)
+          OJPH_WARN(0x01000063,
+            "-signed is not needed and was not used\n");
+        if (bit_depth[0] != 0)
+          OJPH_WARN(0x01000064,
+            "-bit_depth is not needed and was not used\n");
+        if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
+          OJPH_WARN(0x01000065,
+            "-downsamp is not needed and was not used\n");
+
+        base = &png;
+      }
+#endif
       else if (strncmp(".ppm", v, 4) == 0)
       {
         ppm.open(input_filename);
@@ -778,15 +837,23 @@ int main(int argc, char * argv[]) {
         base = &yuv;
       }
       else
-#ifdef OJPH_ENABLE_TIFF_SUPPORT
+#if defined (OJPH_ENABLE_TIFF_SUPPORT) && !defined (OJPH_ENABLE_PNG_SUPPORT)  
         OJPH_ERROR(0x01000041,
           "unknown input file extension; only pgm, ppm, tif(f), or"
+          " raw(yuv) are supported\n");
+#elif !defined (OJPH_ENABLE_TIFF_SUPPORT) && defined (OJPH_ENABLE_PNG_SUPPORT)  
+        OJPH_ERROR(0x01000041,
+          "unknown input file extension; only pgm, png, ppm, or"
+          " raw(yuv) are supported\n");
+#elif defined (OJPH_ENABLE_TIFF_SUPPORT) && defined (OJPH_ENABLE_PNG_SUPPORT)  
+        OJPH_ERROR(0x01000041,
+          "unknown input file extension; only pgm, png, ppm, tif(f), or"
           " raw(yuv) are supported\n");
 #else
         OJPH_ERROR(0x01000041,
           "unknown input file extension; only pgm, ppm, and raw(yuv)) are"
           " supported\n");
-#endif // !OJPH_ENABLE_TIFF_SUPPORT
+#endif // OJPH_ENABLE_TIFF_SUPPORT OJPH_ENABLE_PNG_SUPPORT
     }
     else
       OJPH_ERROR(0x01000051,
