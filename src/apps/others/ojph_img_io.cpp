@@ -47,8 +47,8 @@
 #ifdef OJPH_ENABLE_PNG_SUPPORT
   #define STBI_ONLY_PNG
   #define STBI_NO_LINEAR
-  #ifdef WIN32
-    #define STBI_NO_SIMD  // define STBI_NO_SIMD together with x86 target instead of x64 as a workaround for windows compile issue : stb_image.h(732,4): error C3861: '__cpuid': identifier not found
+  //#ifdef WIN32
+  //  #define STBI_NO_SIMD  // define STBI_NO_SIMD together with x86 target instead of x64 as a workaround for windows compile issue : stb_image.h(732,4): error C3861: '__cpuid': identifier not found
   #endif
   #define STB_IMAGE_IMPLEMENTATION
   #include "stb_image.h"
