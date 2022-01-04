@@ -77,7 +77,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
 endif() 
 ############################################################
 if( OJPH_ENABLE_PNG_SUPPORT )
-  #include_directories(${CMAKE_SOURCE_DIR}/src/external) 
+  include_directories(${CMAKE_SOURCE_DIR}/external/stb) 
   if (MSVC)
 		  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D \"OJPH_ENABLE_PNG_SUPPORT\"")
 	  else()
