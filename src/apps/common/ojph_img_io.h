@@ -159,6 +159,7 @@ namespace ojph {
       line_buffer = NULL;
       line_buffer_for_planar_support_uint8 = NULL;
       line_buffer_for_planar_support_uint16 = NULL;
+      line_buffer_for_planar_support_float32 = NULL;
 
       width = height = num_comps = 0;
       bytes_per_sample = 0;
@@ -182,6 +183,8 @@ namespace ojph {
         free(line_buffer_for_planar_support_uint8);
       if (line_buffer_for_planar_support_uint16)
         free(line_buffer_for_planar_support_uint16);
+      if (line_buffer_for_planar_support_float32)
+        free(line_buffer_for_planar_support_float32);
     }
 
     void open(const char* filename);
@@ -219,6 +222,7 @@ namespace ojph {
     void* line_buffer;
     ui8* line_buffer_for_planar_support_uint8;
     ui16* line_buffer_for_planar_support_uint16;
+    float* line_buffer_for_planar_support_float32;
     ui32 width, height;
     ui32 num_comps;
     ui32 bytes_per_sample;

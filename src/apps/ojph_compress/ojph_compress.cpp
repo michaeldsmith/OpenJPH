@@ -901,6 +901,38 @@ int main(int argc, char * argv[]) {
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
 
+        // set NLT if bitdepth = 32 
+        if (32 == siz.get_bit_depth(0)) {
+          ojph::param_nlt nlt = codestream.access_nlt();
+          bool all_the_same = true;
+          if (num_comps == 3)
+          {
+            all_the_same = all_the_same
+              && bit_depth[0] == bit_depth[1]
+              && bit_depth[1] == bit_depth[2];
+            all_the_same = all_the_same
+              && is_signed[0] == is_signed[1]
+              && is_signed[1] == is_signed[2];
+          }
+          else if (num_comps == 4)
+          {
+            all_the_same = all_the_same
+              && bit_depth[0] == bit_depth[1]
+              && bit_depth[1] == bit_depth[2]
+              && bit_depth[2] == bit_depth[3];
+            all_the_same = all_the_same
+              && is_signed[0] == is_signed[1]
+              && is_signed[1] == is_signed[2]
+              && is_signed[2] == is_signed[3];
+
+          }
+          if (all_the_same)
+            nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+          else
+            for (ojph::ui32 c = 0; c < num_comps; ++c)
+              nlt.set_type3_transformation(c, true);
+        }
+
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000061,
             "-dims option is not needed and was not used\n");

@@ -838,11 +838,11 @@ namespace ojph {
       
     cur_line = 0;
 
-    // Error on known incompatilbe input formats
-    if( tiff_bits_per_sample != 8 && tiff_bits_per_sample != 16 )
+    // Error on known incompatible input formats
+    if( tiff_bits_per_sample != 8 && tiff_bits_per_sample != 16 && tiff_bits_per_sample != 32)
     {
       OJPH_ERROR(0x03000093, "\nTIFF IO is currently limited"
-        " to files with TIFFTAG_BITSPERSAMPLE=8 and TIFFTAG_BITSPERSAMPLE=16 \n"
+        " to files with TIFFTAG_BITSPERSAMPLE=8,16 or 32\n"
         "input file = %s has TIFFTAG_BITSPERSAMPLE=%d", 
         filename, tiff_bits_per_sample);
     }
@@ -900,6 +900,23 @@ namespace ojph {
         OJPH_ERROR(0x03000098, "Unable to allocate %d bytes for "
           "line_buffer_for_planar_support_uint16[] for file %s", 
           width * sizeof(uint16_t), filename);
+    }
+    if (tiff_planar_configuration == PLANARCONFIG_SEPARATE &&
+      bytes_per_sample == 4)
+    {
+      line_buffer_for_planar_support_float32 =
+        (float*)calloc(width, sizeof(float));
+      if (NULL == line_buffer_for_planar_support_float32)
+        OJPH_ERROR(0x03000099, "Unable to allocate %d bytes for "
+          "line_buffer_for_planar_support_float32[] for file %s",
+          width * sizeof(float), filename);
+    }
+
+    //set is_signed = true if TIF uses 32-bit float samples
+    if (tiff_bits_per_sample == 32)
+    {
+      for (ui32 comp_num = 0; comp_num < num_comps; comp_num++)
+        is_signed[comp_num] = true;
     }
   }
 
@@ -960,6 +977,18 @@ namespace ojph {
           {
             line_buffer_of_interleaved_components[x] = 
               line_buffer_for_planar_support_uint16[i];
+          }
+        }
+        else if (bytes_per_sample == 4)
+        {
+          TIFFReadScanline(tiff_handle, line_buffer_for_planar_support_float32,
+            cur_line, (ui16)color);
+          ui32 x = color;
+          float* line_buffer_of_interleaved_components = (float*)line_buffer;
+          for (ui32 i = 0; i < width; i++, x += num_comps)
+          {
+            line_buffer_of_interleaved_components[x] =
+              line_buffer_for_planar_support_float32[i];
           }
         }
       }
@@ -1029,6 +1058,21 @@ namespace ojph {
           *dp++ = (si32)(((*sp) << bits_to_shift) & bit_mask);
       }
       
+    }
+    else if (bytes_per_sample == 4) {
+      if (bit_depth[comp_num] == 32)
+      {
+        const float* sp = (float*)line_buffer + comp_num;
+        float* dp = line->f32;
+        for (ui32 i = width; i > 0; --i, sp += num_comps)
+          *dp++ = (float)*sp;
+      }
+      else
+      {
+        OJPH_ERROR(0x030000A3,
+          "bit_depth[%d] = %d must be 32 when using 32-bit TIF input", 
+          comp_num, bit_depth[comp_num]);
+      }
     }
 
     return width;
