@@ -1091,12 +1091,17 @@ namespace ojph {
   {
     // Error on known incompatilbe output formats
     ui32 max_bitdepth = 0;
+    bool any_component_has_nlt_type3 = false;
     for (ui32 c = 0; c < num_components; c++)
     {
       if (bit_depth_of_data[c] > max_bitdepth)
         max_bitdepth = bit_depth_of_data[c];
+
+      if (has_nlt_type3[c] == true)
+        any_component_has_nlt_type3 = true;
     }
-    if (max_bitdepth > 16)
+
+    if (max_bitdepth > 16 && max_bitdepth != 32 && any_component_has_nlt_type3 == false )
     {
       OJPH_WARN(0x030000B1, "TIFF output is currently limited to files "
         "with max_bitdepth = 16, the source codestream has max_bitdepth=%d"
@@ -1116,6 +1121,10 @@ namespace ojph {
 
     buffer_size = width * (size_t)num_components * (size_t)bytes_per_sample;
     buffer = (ui8*)malloc(buffer_size);
+    if(NULL == buffer)
+    {
+      OJPH_ERROR(0x030000B4, "unable to allocate %ul bytes for buffer[]", buffer_size);
+    }
     fname = filename;
     cur_line = 0;
 
@@ -1160,14 +1169,17 @@ namespace ojph {
       
     TIFFSetField(tiff_handle, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
     TIFFSetField(tiff_handle, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
-    //TIFFSetField(tiff_handle, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_UINT);
+    if (32 == max_bitdepth)
+    {
+      TIFFSetField(tiff_handle, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_IEEEFP);
+    }
     TIFFSetField(tiff_handle, TIFFTAG_ROWSPERSTRIP, height);
     
   }
 
   ////////////////////////////////////////////////////////////////////////////
   void tif_out::configure(ui32 width, ui32 height, ui32 num_components,
-    ui32 *bit_depth)
+    ui32 *bit_depth, bool *is_signed, bool *has_nlt_type3)
   {
     assert(tiff_handle == NULL); //configure before opening
 
@@ -1175,23 +1187,31 @@ namespace ojph {
     this->height = height;
     this->num_components = num_components;
     ui32 max_bitdepth = 0;
+    bool any_component_has_nlt_type3 = false;
     for (ui32 c = 0; c < num_components; c++)
     {
       this->bit_depth_of_data[c] = bit_depth[c];
       if (bit_depth[c] > max_bitdepth)
         max_bitdepth = bit_depth[c];
+
+      this->is_signed[c] = is_signed[c];
+      this->has_nlt_type3[c] = has_nlt_type3[c];
+      if (has_nlt_type3[c] == true)
+        any_component_has_nlt_type3 = true;
     }
 
-    bytes_per_sample = (max_bitdepth + 7) / 8;  // round up
-    if (bytes_per_sample > 2)
-    {
-      // TIFF output is currently limited to files with max_bitdepth = 16, 
-      // the decoded data will be truncated to 16 bits
+    if (max_bitdepth <= 8)
+      bytes_per_sample = 1;
+    else if (max_bitdepth <= 16)
       bytes_per_sample = 2;
-    }
+    else
+      bytes_per_sample = 4;
+
+    if(any_component_has_nlt_type3)
+      bytes_per_sample = 4;
+
     samples_per_line = num_components * width;
     bytes_per_line = bytes_per_sample * (size_t)samples_per_line;
-
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -1295,16 +1315,46 @@ namespace ojph {
           // 16 bit MSB
           *dp = (ui16)((val >> bits_to_shift) & bit_mask);
         }
-      }
-      
+      }   
     }
-      // write scanline when the last component is reached 
-      if (comp_num == num_components-1)
+    else if (bytes_per_sample == 4)
+    {
+
+      // float32 was compressed
+      if (has_nlt_type3[comp_num] == true)
       {
-        int result = TIFFWriteScanline(tiff_handle, buffer, cur_line++);
-        if (result != 1)
-          OJPH_ERROR(0x030000C1, "error writing to file %s", fname);
+        if (bit_depth_of_data[comp_num] == 32)
+        {
+          const float* sp = line->f32;
+          float* dp = (float*)buffer + comp_num;
+          for (ui32 i = width; i > 0; --i, dp += num_components)
+          {
+            float val = *sp++;
+            *dp = val;
+          }
+        }
+        else
+        {
+          OJPH_ERROR(0x030000C1, 
+            "bytes_per_sample = 4 has_nlt_type3[%d] = true and bit_depth_of_data[%d]=%d is not yet supported", 
+            comp_num, comp_num, bit_depth_of_data[comp_num]);
+        }
       }
+      else
+      {
+        OJPH_ERROR(0x030000C2,
+          "bytes_per_sample = 4 has_nlt_type3[%d] = false is not yet supported",
+          comp_num);
+      }
+    }
+    
+    // write scanline when the last component is reached 
+    if (comp_num == num_components-1)
+    {
+      int result = TIFFWriteScanline(tiff_handle, buffer, cur_line++);
+      if (result != 1)
+        OJPH_ERROR(0x030000C3, "error writing to file %s", fname);
+    }
     return 0;
   }
   #endif /* OJPH_ENABLE_TIFF_SUPPORT */

@@ -325,6 +325,7 @@ int main(int argc, char *argv[]) {
       {
         codestream.set_planar(false);
         ojph::param_siz siz = codestream.access_siz();
+        ojph::param_nlt nlt = codestream.access_nlt();
 
         bool all_same = true;
         ojph::point p = siz.get_downsampling(0);
@@ -338,12 +339,29 @@ int main(int argc, char *argv[]) {
             "To save an image to tif(f), all the components must have the "
             "same downsampling ratio\n");
         ojph::ui32 bit_depths[4] = { 0, 0, 0, 0 };
-        for (ojph::ui32 c = 0; c < siz.get_num_components(); c++)
+        bool is_signeds[4] = { false, false, false, false };
+        bool has_nlt_type3[4] = { false, false, false, false };
+        for (ojph::ui32 c = 0; c < (siz.get_num_components() > 4 ? 4 : siz.get_num_components()); c++)
         {
           bit_depths[c] = siz.get_bit_depth(c);
+          is_signeds[c] = siz.is_signed(c);
+          bool nlt_is_signed;
+          ojph::ui8 nlt_bit_depth;
+          has_nlt_type3[c] = nlt.get_type3_transformation(c, nlt_bit_depth, nlt_is_signed);
+
+          if (true == has_nlt_type3[c] && (nlt_bit_depth != siz.get_bit_depth(c) || nlt_is_signed != siz.is_signed(c)))
+          {
+            OJPH_ERROR(0x02000005,
+              "There is discrepancy in component %d configuration between "
+              "SIZ marker segment, which specifies bit_depth = %d and "
+              "signedness = %s, and NLT marker segment, which specifies "
+              "bit_depth = %d and signedness = %s.\n", c,
+              siz.get_bit_depth(c), siz.is_signed(c) ? "True" : "False",
+              nlt_bit_depth, nlt_is_signed ? "True" : "False");
+          }
         }
         tif.configure(siz.get_recon_width(0), siz.get_recon_height(0),
-          siz.get_num_components(), bit_depths);
+          siz.get_num_components(), bit_depths, is_signeds, has_nlt_type3);
         tif.open(output_filename);
         base = &tif;
       }
