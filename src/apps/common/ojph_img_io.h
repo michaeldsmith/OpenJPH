@@ -932,7 +932,7 @@ namespace ojph {
     }
 
     void open(const char* filename);
-    void configure(ui32 width, ui32 height, ui32 num_components, bool* has_nlt, ui8* bitdepths, bool* is_signed);
+    void configure(ui32 width, ui32 height, ui32 num_components, bool* has_nlt, ui32* bitdepths, bool* is_signed);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close();
 

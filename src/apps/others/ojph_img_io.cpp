@@ -2266,11 +2266,11 @@ namespace ojph {
         rgba_input_file = new Imf::RgbaInputFile(filename);
         data_window = rgba_input_file->dataWindow();
         int  width = data_window.max.x - data_window.min.x + 1;
-        int height = data_window.max.y - data_window.min.y + 1;
 
         // reserve memory for 1 scanline
         pixels.resizeErase(1, width);
         // reserve memory for the whole image
+        //int height = data_window.max.y - data_window.min.y + 1;
         //pixels.resizeErase(height, width);
 
       }
@@ -2384,7 +2384,7 @@ namespace ojph {
     return;
   }
 
-  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui8 *bitdepths, bool* is_signed)
+  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui32 *bitdepths, bool* is_signed)
   {
     this->num_components = num_components;
     this->width = width;

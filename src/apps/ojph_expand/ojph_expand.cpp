@@ -402,9 +402,9 @@ int main(int argc, char *argv[]) {
         ojph::param_nlt nlt = codestream.access_nlt();
         ojph::ui32 num_components = siz.get_num_components();
 
-        ojph::ui8 *bitdepths = (ojph::ui8*)calloc(num_components, sizeof(ojph::ui8));
+        ojph::ui32 *bitdepths = (ojph::ui32*)calloc(num_components, sizeof(ojph::ui32));
         if (NULL == bitdepths) {
-          fprintf(stderr, "Unable to allocate %zd bytes for bitdepths", num_components * sizeof(ojph::ui8));
+          fprintf(stderr, "Unable to allocate %zd bytes for bitdepths", num_components * sizeof(ojph::ui32));
           exit(-1);
         }
 
@@ -430,7 +430,7 @@ int main(int argc, char *argv[]) {
             c, has_nlt[c] ? "true" : "false");
           if (true == has_nlt[c])
           {
-            fprintf(stderr, "nlt_bit_depth = %d nlt_is_signed = % s\n",
+            fprintf(stderr, "nlt_bit_depth = %d nlt_is_signed = %s\n",
               nlt_bit_depth,
               nlt_is_signed ? "true" : "false");
           }

@@ -15,6 +15,13 @@ if( OJPH_ENABLE_TIFF_SUPPORT )
     "or disable TIFF support using -DOJPH_ENABLE_TIFF_SUPPORT=OFF.")
   endif( TIFF_FOUND )
 
+  if(TIFF_FOUND)
+    message(STATUS "   TIFF_INCLUDE_DIR = ${TIFF_INCLUDE_DIR}")
+    message(STATUS "  TIFF_INCLUDE_DIRS = ${TIFF_INCLUDE_DIRS}")
+    message(STATUS "       TIFF_LIBRARY = ${TIFF_LIBRARY}")
+    message(STATUS "     TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
+  endif(TIFF_FOUND)
+
 endif(OJPH_ENABLE_TIFF_SUPPORT) 
 ############################################################
 
@@ -52,7 +59,8 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
   #   "or disable OpenEXR support using -DOJPH_ENABLE_OPENEXR_SUPPORT=OFF.")
   # endif( OpenEXR_FOUND )
 
-  find_package(OpenEXR 3 CONFIG QUIET)
+  #find_package(OpenEXR 3 CONFIG QUIET)
+  find_package(OpenEXR 3 QUIET)
   if(OpenEXR_FOUND)
     message(STATUS "Found OpenEXR ${OpenEXR_VERSION}")
     set(USE_OPENEXR TRUE CACHE BOOL "Add OpenEXR support")
@@ -83,6 +91,14 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
       "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
     endif(IlmBase_FOUND)
     
+  endif(OpenEXR_FOUND)
+
+  if(OpenEXR_FOUND)
+    message(STATUS "       OpenEXR_VERSION = ${OpenEXR_VERSION}")
+    message(STATUS "   OpenEXR_INCLUDE_DIR = ${OpenEXR_INCLUDE_DIR}")
+    message(STATUS "  OpenEXR_INCLUDE_DIRS = ${OpenEXR_INCLUDE_DIRS}")
+    message(STATUS "       OpenEXR_LIBRARY = ${OpenEXR_LIBRARY}")
+    message(STATUS "     OpenEXR_LIBRARIES = ${OpenEXR_LIBRARIES}")
   endif(OpenEXR_FOUND)
 
 endif(OJPH_ENABLE_OPENEXR_SUPPORT) 
