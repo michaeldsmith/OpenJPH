@@ -2357,14 +2357,21 @@ namespace ojph {
     cur_line = 0;
     if (true == is_use_Rgba_interface)
     {
-      // allocate a scanline to hold a line of decoded data
-      pixels.resizeErase(1, width);
+      if (true == codestream_is_planar)
+      {
+        // if planar - allocate a framebuffer to hold the whole image
+        pixels.resizeErase(height, width);
+      }
+      else
+      {
+        // if interleaved - allocate a scanline to hold a line of decoded data
+        pixels.resizeErase(1, width);
+      }
 
       Imath::Box2i          display_window(Imath::V2i(0, 0), Imath::V2i(width - 1, height - 1));
-      data_window.min.x = 0;
-      data_window.min.y = 0;
-      data_window.max.x = width - 1;
-      data_window.max.y = height - 1;
+      Imath::Box2i          data_window(Imath::V2i(0, 0), Imath::V2i(width - 1, height - 1));
+      this->data_window = data_window;
+
       if (num_components == 4)
       {
         rgba_output_file = new Imf::RgbaOutputFile(fname, display_window, data_window, Imf::WRITE_RGBA);
@@ -2384,7 +2391,7 @@ namespace ojph {
     return;
   }
 
-  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui32 *bitdepths, bool* is_signed)
+  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui32 *bitdepths, bool* is_signed, bool codestream_is_planar)
   {
     this->num_components = num_components;
     this->width = width;
@@ -2419,17 +2426,18 @@ namespace ojph {
       fprintf(stderr, "not using RGBA interface\n");
     }
 
-    
+    this->codestream_is_planar = codestream_is_planar;
 
     return;
   }
 
   ui32 exr_out::write(const line_buf* line, ui32 comp_num)
   {
+    const int y = codestream_is_planar == false ? 0 : cur_line;
     if (true == this->is_use_Rgba_interface)
     {
-      // set framebuffer for first component
-      if (0 == comp_num)
+      // if interleaved - set framebuffer for first component of the line
+      if (codestream_is_planar == false && 0 == comp_num)
       {
         rgba_output_file->setFrameBuffer(&pixels[0][0] - data_window.min.x - data_window.min.y * width, 1, width);
       }
@@ -2439,25 +2447,25 @@ namespace ojph {
       case 0:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[0][i].r.setBits((si16)line->i32[i]);
+          pixels[y][i].r.setBits((si16)line->i32[i]);
         }
         break;
       case 1:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[0][i].g.setBits((si16)line->i32[i]);
+          pixels[y][i].g.setBits((si16)line->i32[i]);
         }
         break;
       case 2:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[0][i].b.setBits((si16)line->i32[i]);
+          pixels[y][i].b.setBits((si16)line->i32[i]);
         }
         break;
       case 3:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[0][i].a.setBits((si16)line->i32[i]);
+          pixels[y][i].a.setBits((si16)line->i32[i]);
         }
         break;
       default:
@@ -2468,7 +2476,7 @@ namespace ojph {
       }
 
       // write to file after last component has been populated in this line
-      if (comp_num == num_components - 1)
+      if (comp_num == num_components - 1 && codestream_is_planar == false)
       {
         rgba_output_file->writePixels(1);
         data_window.min.y++;
@@ -2480,8 +2488,15 @@ namespace ojph {
       fprintf(stderr, "not using RGBA interface is not currently supported\n");
     }
 
-    if( comp_num == num_components - 1)
+    if (comp_num == num_components - 1 && codestream_is_planar == false)
       cur_line++;
+    else if (codestream_is_planar == true)
+    {
+      cur_line++;
+      if (cur_line == height)
+        cur_line = 0;  // moving to next component
+    }
+
     
     return 0;
   }
@@ -2492,6 +2507,14 @@ namespace ojph {
     {
       if (true == is_use_Rgba_interface)
       {
+        // if planar - write the file now
+        // if interleaved - the scan lines are already written in the write() function
+        if (true == codestream_is_planar)
+        {
+          rgba_output_file->setFrameBuffer(&pixels[0][0], 1, width);
+          rgba_output_file->writePixels(height);
+        }
+
         pixels.resizeErase(0, 0);
 
         if (NULL != rgba_output_file)

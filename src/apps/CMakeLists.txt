@@ -86,9 +86,17 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
         "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
       endif(OpenEXR_FOUND)
     else(IlmBase_FOUND)
-      message(STATUS "OpenEXR support has been enabled but no path to the OpenEXR or IlmBase library "
-      "has been specified; please configure with -DCMAKE_PREFIX_PATH=<OpenEXR library directory>, "
-      "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
+      # try again, but using the CONFIG option
+      find_package(OpenEXR 3 CONFIG QUIET)
+      if(OpenEXR_FOUND)
+        message(STATUS "Found OpenEXR ${OpenEXR_VERSION}")
+        set(USE_OPENEXR TRUE CACHE BOOL "Add OpenEXR support")
+        add_definitions(-DOJPH_ENABLE_OPENEXR_SUPPORT)
+      else(OpenEXR_FOUND)
+        message(STATUS "OpenEXR support has been enabled but no path to the OpenEXR or IlmBase library "
+          "has been specified; please configure with -DCMAKE_PREFIX_PATH=<OpenEXR library directory>, "
+          "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
+      endif(OpenEXR_FOUND)
     endif(IlmBase_FOUND)
     
   endif(OpenEXR_FOUND)

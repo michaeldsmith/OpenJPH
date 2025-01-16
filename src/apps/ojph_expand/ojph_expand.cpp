@@ -462,7 +462,7 @@ int main(int argc, char *argv[]) {
         ojph::ui32 width = siz.get_recon_width(0);
         ojph::ui32 height = siz.get_recon_height(0);
         
-        exr.configure(width, height, num_components, has_nlt, bitdepths, is_signed);
+        exr.configure(width, height, num_components, has_nlt, bitdepths, is_signed, codestream.is_planar());
         exr.open(output_filename);
         base = &exr;
 

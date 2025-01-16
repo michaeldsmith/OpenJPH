@@ -921,6 +921,7 @@ namespace ojph {
       }
       rgba_output_file = NULL;
       is_use_Rgba_interface = false;
+      codestream_is_planar = false;
 
       this->data_window.makeEmpty();
         
@@ -932,7 +933,7 @@ namespace ojph {
     }
 
     void open(const char* filename);
-    void configure(ui32 width, ui32 height, ui32 num_components, bool* has_nlt, ui32* bitdepths, bool* is_signed);
+    void configure(ui32 width, ui32 height, ui32 num_components, bool* has_nlt, ui32* bitdepths, bool* is_signed, bool codestream_is_planar);
     virtual ui32 write(const line_buf* line, ui32 comp_num);
     virtual void close();
 
@@ -946,6 +947,7 @@ namespace ojph {
     bool has_nlt[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
     ui32 bit_depth[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
     bool is_signed[MAXIMUM_NUMBER_OF_COMPONENTS_EXR_OUT];
+    bool codestream_is_planar;
 
     Imf::RgbaOutputFile* rgba_output_file;
     Imf::Array2D<Imf::Rgba> pixels;
