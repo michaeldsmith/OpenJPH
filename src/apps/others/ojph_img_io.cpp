@@ -2431,6 +2431,16 @@ namespace ojph {
     return;
   }
 
+  si16 convert_si32_to_si16(const si32 si32_value)
+  {
+    if (si32_value > INT16_MAX)
+      return INT16_MAX;
+    else if (si32_value < INT16_MIN)
+      return INT16_MIN;
+    else
+      return (si16)si32_value;
+  }
+
   ui32 exr_out::write(const line_buf* line, ui32 comp_num)
   {
     const int y = codestream_is_planar == false ? 0 : cur_line;
@@ -2447,25 +2457,37 @@ namespace ojph {
       case 0:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].r.setBits((si16)line->i32[i]);
+          //pixels[y][i].r.setBits((si16)line->i32[i]);
+          const si32 si32_value = line->i32[i];
+          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
+          pixels[y][i].r.setBits(si16_value);
         }
         break;
       case 1:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].g.setBits((si16)line->i32[i]);
+          //pixels[y][i].g.setBits((si16)line->i32[i]);
+          const si32 si32_value = line->i32[i];
+          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
+          pixels[y][i].g.setBits(si16_value);
         }
         break;
       case 2:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].b.setBits((si16)line->i32[i]);
+          //pixels[y][i].b.setBits((si16)line->i32[i]);
+          const si32 si32_value = line->i32[i];
+          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
+          pixels[y][i].b.setBits(si16_value);
         }
         break;
       case 3:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].a.setBits((si16)line->i32[i]);
+          //pixels[y][i].a.setBits((si16)line->i32[i]);
+          const si32 si32_value = line->i32[i];
+          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
+          pixels[y][i].a.setBits(si16_value);
         }
         break;
       default:
