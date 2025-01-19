@@ -400,6 +400,7 @@ int main(int argc, char *argv[]) {
       {
         ojph::param_siz siz = codestream.access_siz();
         ojph::param_nlt nlt = codestream.access_nlt();
+        ojph::param_cod cod = codestream.access_cod();
         ojph::ui32 num_components = siz.get_num_components();
 
         ojph::ui32 *bitdepths = (ojph::ui32*)calloc(num_components, sizeof(ojph::ui32));
@@ -462,7 +463,7 @@ int main(int argc, char *argv[]) {
         ojph::ui32 width = siz.get_recon_width(0);
         ojph::ui32 height = siz.get_recon_height(0);
         
-        exr.configure(width, height, num_components, has_nlt, bitdepths, is_signed, codestream.is_planar());
+        exr.configure(width, height, num_components, has_nlt, bitdepths, is_signed, codestream.is_planar(), cod.is_reversible());
         exr.open(output_filename);
         base = &exr;
 

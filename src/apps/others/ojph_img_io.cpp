@@ -2391,7 +2391,9 @@ namespace ojph {
     return;
   }
 
-  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, bool *has_nlt, ui32 *bitdepths, bool* is_signed, bool codestream_is_planar)
+  void exr_out::configure(ui32 width, ui32 height, ui32 num_components, 
+    bool *has_nlt, ui32 *bitdepths, bool* is_signed, 
+    bool codestream_is_planar, bool codestream_is_reversible)
   {
     this->num_components = num_components;
     this->width = width;
@@ -2427,16 +2429,27 @@ namespace ojph {
     }
 
     this->codestream_is_planar = codestream_is_planar;
+    this->codestream_is_reversible = codestream_is_reversible;
 
     return;
   }
 
-  si16 convert_si32_to_si16(const si32 si32_value)
+  si16 convert_si32_to_si16(const si32 si32_value, bool convert_nan_to_zero = false)
   {
     if (si32_value > INT16_MAX)
       return INT16_MAX;
     else if (si32_value < INT16_MIN)
       return INT16_MIN;
+    else if (true == convert_nan_to_zero)
+    {
+      const si16 si16_value = (si16)si32_value;
+      Imath::half half_value;
+      half_value.setBits(si16_value);
+      if (half_value.isNan())
+        half_value = 0.0;
+      
+      return half_value.bits();
+    }  
     else
       return (si16)si32_value;
   }
@@ -2444,6 +2457,7 @@ namespace ojph {
   ui32 exr_out::write(const line_buf* line, ui32 comp_num)
   {
     const int y = codestream_is_planar == false ? 0 : cur_line;
+    const bool convert_nan_to_zero = codestream_is_reversible ? false : true;
     if (true == this->is_use_Rgba_interface)
     {
       // if interleaved - set framebuffer for first component of the line
@@ -2457,37 +2471,25 @@ namespace ojph {
       case 0:
         for (ui32 i = 0; i < width; i++)
         {
-          //pixels[y][i].r.setBits((si16)line->i32[i]);
-          const si32 si32_value = line->i32[i];
-          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
-          pixels[y][i].r.setBits(si16_value);
+          pixels[y][i].r.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
         }
         break;
       case 1:
         for (ui32 i = 0; i < width; i++)
         {
-          //pixels[y][i].g.setBits((si16)line->i32[i]);
-          const si32 si32_value = line->i32[i];
-          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
-          pixels[y][i].g.setBits(si16_value);
+          pixels[y][i].g.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
         }
         break;
       case 2:
         for (ui32 i = 0; i < width; i++)
         {
-          //pixels[y][i].b.setBits((si16)line->i32[i]);
-          const si32 si32_value = line->i32[i];
-          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
-          pixels[y][i].b.setBits(si16_value);
+          pixels[y][i].b.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
         }
         break;
       case 3:
         for (ui32 i = 0; i < width; i++)
         {
-          //pixels[y][i].a.setBits((si16)line->i32[i]);
-          const si32 si32_value = line->i32[i];
-          const si16 si16_value = si32_value > INT16_MAX ? INT16_MAX : (si32_value < INT16_MIN ? INT16_MIN : (si16)si32_value);
-          pixels[y][i].a.setBits(si16_value);
+          pixels[y][i].a.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
         }
         break;
       default:
