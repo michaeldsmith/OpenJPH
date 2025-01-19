@@ -2434,19 +2434,27 @@ namespace ojph {
     return;
   }
 
-  si16 convert_si32_to_si16(const si32 si32_value, bool convert_nan_to_zero = false)
+  si16 convert_si32_to_si16(const si32 si32_value, bool convert_special_numbers_to_finite_numbers = false)
   {
     if (si32_value > INT16_MAX)
       return INT16_MAX;
     else if (si32_value < INT16_MIN)
       return INT16_MIN;
-    else if (true == convert_nan_to_zero)
+    else if (true == convert_special_numbers_to_finite_numbers)
     {
       const si16 si16_value = (si16)si32_value;
-      Imath::half half_value;
+      half half_value;
       half_value.setBits(si16_value);
+      if (half_value.isFinite())
+        return si16_value;
+
+      // handle non-real number to real-number mapping
       if (half_value.isNan())
-        half_value = 0.0;
+        half_value = 0.0f;
+      else if (half_value.isInfinity() && !half_value.isNegative())
+        half_value = HALF_MAX;
+      else if (half_value.isInfinity() && half_value.isNegative())
+        half_value = -1.0f * HALF_MAX;
       
       return half_value.bits();
     }  
@@ -2457,7 +2465,7 @@ namespace ojph {
   ui32 exr_out::write(const line_buf* line, ui32 comp_num)
   {
     const int y = codestream_is_planar == false ? 0 : cur_line;
-    const bool convert_nan_to_zero = codestream_is_reversible ? false : true;
+    const bool convert_special_numbers_to_finite_numbers = codestream_is_reversible ? false : true;
     if (true == this->is_use_Rgba_interface)
     {
       // if interleaved - set framebuffer for first component of the line
@@ -2471,25 +2479,25 @@ namespace ojph {
       case 0:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].r.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
+          pixels[y][i].r.setBits(convert_si32_to_si16(line->i32[i], convert_special_numbers_to_finite_numbers));
         }
         break;
       case 1:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].g.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
+          pixels[y][i].g.setBits(convert_si32_to_si16(line->i32[i], convert_special_numbers_to_finite_numbers));
         }
         break;
       case 2:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].b.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
+          pixels[y][i].b.setBits(convert_si32_to_si16(line->i32[i], convert_special_numbers_to_finite_numbers));
         }
         break;
       case 3:
         for (ui32 i = 0; i < width; i++)
         {
-          pixels[y][i].a.setBits(convert_si32_to_si16(line->i32[i], convert_nan_to_zero));
+          pixels[y][i].a.setBits(convert_si32_to_si16(line->i32[i], convert_special_numbers_to_finite_numbers));
         }
         break;
       default:
