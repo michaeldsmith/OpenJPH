@@ -355,7 +355,8 @@ int main(int argc, char *argv[]) {
           is_signeds[c] = siz.is_signed(c);
           bool nlt_is_signed;
           ojph::ui8 nlt_bit_depth;
-          has_nlt_type3[c] = nlt.get_type3_transformation(c, nlt_bit_depth, nlt_is_signed);
+          ojph::ui8 nl_type;
+          has_nlt_type3[c] = nlt.get_nonlinear_transform(c, nlt_bit_depth, nlt_is_signed, nl_type);
 
           if (true == has_nlt_type3[c] && (nlt_bit_depth != siz.get_bit_depth(c) || nlt_is_signed != siz.is_signed(c)))
           {

@@ -936,10 +936,12 @@ int main(int argc, char * argv[]) {
 
           }
           if (all_the_same)
-            nlt.set_type3_transformation(ojph::param_nlt::ALL_COMPS, true);
+            nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS, 
+              ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
           else
             for (ojph::ui32 c = 0; c < num_comps; ++c)
-              nlt.set_type3_transformation(c, true);
+              nlt.set_nonlinear_transform(c, 
+                ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
         }
 
         if (dims.w != 0 || dims.h != 0)
