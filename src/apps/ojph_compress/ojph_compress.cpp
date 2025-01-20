@@ -1152,7 +1152,8 @@ int main(int argc, char * argv[]) {
         codestream.request_tlm_marker(tlm_marker);
 
         ojph::param_nlt nlt = codestream.access_nlt();
-        nlt.set_type3_transformation(65535, true);
+        nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS,
+          ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000071,
