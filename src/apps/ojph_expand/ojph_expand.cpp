@@ -434,7 +434,7 @@ int main(int argc, char *argv[]) {
           bool nlt_is_signed;
           ojph::ui8 nlt_bit_depth;
           ojph::ui8 nl_type;
-          bool result = nlt.get_nonlinear_transform(c, nlt_bit_depth, nlt_is_signed, nl_type);
+          has_nlt[c] = nlt.get_nonlinear_transform(c, nlt_bit_depth, nlt_is_signed, nl_type);
 
           fprintf(stderr, "comp = %d has_nlt = %s ",
             c, has_nlt[c] ? "true" : "false");
