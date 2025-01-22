@@ -2436,6 +2436,8 @@ namespace ojph {
 
   si16 convert_si32_to_si16(const si32 si32_value, bool convert_special_numbers_to_finite_numbers = false)
   {
+# pragma disabling_convert_si32_to_si16
+#if 0
     if (si32_value > INT16_MAX)
       return INT16_MAX;
     else if (si32_value < INT16_MIN)
@@ -2459,6 +2461,7 @@ namespace ojph {
       return half_value.bits();
     }  
     else
+#endif
       return (si16)si32_value;
   }
 
