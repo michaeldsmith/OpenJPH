@@ -36,6 +36,7 @@
 //***************************************************************************/
 
 #include <cmath>
+#include <climits>
 
 #include "ojph_defs.h"
 #include "ojph_arch.h"
@@ -79,6 +80,16 @@ namespace ojph {
       (const float *sp, si32 *dp, float mul, ui32 width) = NULL;
 
     //////////////////////////////////////////////////////////////////////////
+    void (*irv_convert_to_float_nlt_type3) (
+      const line_buf *src_line, ui32 src_line_offset,
+      line_buf *dst_line, ui32 bit_depth, bool is_signed, ui32 width) = NULL;
+      
+    //////////////////////////////////////////////////////////////////////////
+    void (*irv_convert_to_integer_nlt_type3) (
+      const line_buf *src_line, line_buf *dst_line, ui32 dst_line_offset, 
+      ui32 bit_depth, bool is_signed, ui32 width) = NULL;
+
+    //////////////////////////////////////////////////////////////////////////
     void (*rct_forward)
       (const line_buf* r, const line_buf* g, const line_buf* b,
        line_buf* y, line_buf* cb, line_buf* cr, ui32 repeat) = NULL;
@@ -115,6 +126,8 @@ namespace ojph {
       cnvrt_si32_to_float = gen_cnvrt_si32_to_float;
       cnvrt_float_to_si32_shftd = gen_cnvrt_float_to_si32_shftd;
       cnvrt_float_to_si32 = gen_cnvrt_float_to_si32;
+      irv_convert_to_float_nlt_type3 = gen_irv_convert_to_float_nlt_type3;
+      irv_convert_to_integer_nlt_type3 = gen_irv_convert_to_integer_nlt_type3;
       rct_forward = gen_rct_forward;
       rct_backward = gen_rct_backward;
       ict_forward = gen_ict_forward;
@@ -237,8 +250,8 @@ namespace ojph {
       }
       else 
       {
-        assert(src_line->flags | line_buf::LFT_64BIT);
-        assert(dst_line->flags | line_buf::LFT_32BIT);
+        assert(src_line->flags & line_buf::LFT_64BIT);
+        assert(dst_line->flags & line_buf::LFT_32BIT);
         const si64 *sp = src_line->i64 + src_line_offset;
         si32 *dp = dst_line->i32 + dst_line_offset;
         for (ui32 i = width; i > 0; --i)
@@ -276,8 +289,8 @@ namespace ojph {
       }
       else 
       {
-        assert(src_line->flags | line_buf::LFT_64BIT);
-        assert(dst_line->flags | line_buf::LFT_32BIT);
+        assert(src_line->flags & line_buf::LFT_64BIT);
+        assert(dst_line->flags & line_buf::LFT_32BIT);
         const si64 *sp = src_line->i64 + src_line_offset;
         si32 *dp = dst_line->i32 + dst_line_offset;
         for (ui32 i = width; i > 0; --i) {
@@ -320,16 +333,134 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_float_nlt_type3(const line_buf *src_line, 
+      ui32 src_line_offset, line_buf *dst_line, 
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
+
+      float mul = (float)(1.0 / 65536.0 / 65536.0);
+
+      const si32* sp = src_line->i32 + src_line_offset;
+      float* dp = dst_line->f32;
+      ui32 shift = 32 - bit_depth;
+      if (is_signed)
+      {
+        si32 bias = (si32)((ui32)INT_MIN + 1);
+        for (ui32 i = width; i > 0; --i) {
+          si32 v = *sp++ << shift;
+          v = (v >= 0) ? v : (- v - bias);
+          *dp++ = (float)v * mul;
+        }
+      }
+      else
+      {
+        for (ui32 i = width; i > 0; --i) {
+          si32 v = *sp++ << shift;
+          *dp++ = (float)v * mul - 0.5f;
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void gen_irv_convert_to_integer_nlt_type3(const line_buf *src_line, 
+      line_buf *dst_line, ui32 dst_line_offset,
+      ui32 bit_depth, bool is_signed, ui32 width)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) == 0 &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER));
+      
+      const float* sp = src_line->f32;
+      si32* dp = dst_line->i32 + dst_line_offset;
+      if (bit_depth <= 30) 
+      {
+        // We are leaving two bit overhead -- here, we are assuming that after
+        // multiplications, the resulting number can still be represented
+        // using 32 bit integer
+        float mul = (float)(1 << bit_depth);
+        const si32 upper_limit = INT_MAX >> (32 - bit_depth);
+        const si32 lower_limit = INT_MIN >> (32 - bit_depth);
+
+        if (is_signed)
+        {
+          const si32 bias = (1 << (bit_depth - 1)) + 1;
+          for (ui32 i = width; i > 0; --i) {
+            si32 v = ojph_round(*sp++ * mul);
+            v = ojph_max(v, lower_limit);
+            v = ojph_min(v, upper_limit);
+            v = (v >= 0) ? v : (- v - bias);
+            *dp++ = v;
+          }
+        }
+        else
+        {
+          const si32 half = (1 << (bit_depth - 1));
+          for (ui32 i = width; i > 0; --i) {
+            si32 v = ojph_round(*sp++ * mul);
+            v = ojph_max(v, lower_limit);
+            v = ojph_min(v, upper_limit);
+            *dp++ = v + half;
+          }
+        }
+      }
+      else
+      {
+        // There is the possibility that converting to integer will
+        // exceed the dynamic range of 32bit integer; therefore, we need
+        // to use 64 bit.  One may think, why not limit the floats to the
+        // range of [-0.5f, 0.5f)? 
+        // Notice the half closed range -- we need a value just below 0.5f.
+        // While getting this number is possible, after multiplication, the
+        // resulting number will not be exactly the maximum that the integer 
+        // can achieve.  All this is academic, because here are talking
+        // about a number which has all the exponent bits set, meaning 
+        // it is either infinity, -infinity, qNan or sNan.
+        float mul = (float)(1ull << bit_depth);
+        const si64 upper_limit = (si64)LLONG_MAX >> (64 - bit_depth);
+        const si64 lower_limit = (si64)LLONG_MIN >> (64 - bit_depth);
+
+        if (is_signed)
+        {
+          const si32 bias = (1 << (bit_depth - 1)) + 1;
+          for (ui32 i = width; i > 0; --i) {
+            si64 t = ojph_round64(*sp++ * mul);
+            t = ojph_max(t, lower_limit);
+            t = ojph_min(t, upper_limit);
+            si32 v = (si32)t;
+            v = (v >= 0) ? v : (- v - bias);
+            *dp++ = v;
+          }
+        }
+        else
+        {
+          const si32 half = (1 << (bit_depth - 1));
+          for (ui32 i = width; i > 0; --i) {
+            si64 t = ojph_round64(*sp++ * mul);
+            t = ojph_max(t, lower_limit);
+            t = ojph_min(t, upper_limit);
+            si32 v = (si32)t;
+            *dp++ = v + half;
+          }
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     void gen_rct_forward(
       const line_buf *r, const line_buf *g, const line_buf *b,
       line_buf *y, line_buf *cb, line_buf *cr, ui32 repeat)
     {
-      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
-             (cb->flags & line_buf::LFT_REVERSIBLE) && 
-             (cr->flags & line_buf::LFT_REVERSIBLE) &&
-             (r->flags  & line_buf::LFT_REVERSIBLE) &&
-             (g->flags  & line_buf::LFT_REVERSIBLE) && 
-             (b->flags  & line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_INTEGER) &&
+             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cr->flags & line_buf::LFT_INTEGER) &&
+             (r->flags  & line_buf::LFT_INTEGER) &&
+             (g->flags  & line_buf::LFT_INTEGER) && 
+             (b->flags  & line_buf::LFT_INTEGER));
       
       if  (y->flags & line_buf::LFT_32BIT)
       {
@@ -374,12 +505,12 @@ namespace ojph {
       const line_buf *y, const line_buf *cb, const line_buf *cr,
       line_buf *r, line_buf *g, line_buf *b, ui32 repeat)
     {
-      assert((y->flags  & line_buf::LFT_REVERSIBLE) &&
-             (cb->flags & line_buf::LFT_REVERSIBLE) && 
-             (cr->flags & line_buf::LFT_REVERSIBLE) &&
-             (r->flags  & line_buf::LFT_REVERSIBLE) &&
-             (g->flags  & line_buf::LFT_REVERSIBLE) && 
-             (b->flags  & line_buf::LFT_REVERSIBLE));
+      assert((y->flags  & line_buf::LFT_INTEGER) &&
+             (cb->flags & line_buf::LFT_INTEGER) && 
+             (cr->flags & line_buf::LFT_INTEGER) &&
+             (r->flags  & line_buf::LFT_INTEGER) &&
+             (g->flags  & line_buf::LFT_INTEGER) && 
+             (b->flags  & line_buf::LFT_INTEGER));
 
       if (y->flags & line_buf::LFT_32BIT)
       {
