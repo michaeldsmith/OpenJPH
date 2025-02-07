@@ -1,9 +1,6 @@
 ## building ojph_expand
 #######################
 
-include_directories(../common)
-include_directories(../../core/common)
-
 file(GLOB OJPH_EXPAND         "ojph_expand.cpp")
 file(GLOB OJPH_IMG_IO         "../others/ojph_img_io.cpp")
 file(GLOB OJPH_IMG_IO_SSE4    "../others/ojph_img_io_sse41.cpp")
@@ -17,17 +14,11 @@ source_group("others"      FILES ${OJPH_IMG_IO})
 source_group("common"      FILES ${OJPH_IMG_IO_H})
 
 if(EMSCRIPTEN)
-  add_compile_options(-std=c++11 -O3 -fexceptions)
-  add_link_options(-sWASM=1 -sASSERTIONS=1 -sALLOW_MEMORY_GROWTH=1 -sNODERAWFS=1 -sENVIRONMENT=node -sEXIT_RUNTIME=1 -sEXCEPTION_CATCHING_ALLOWED=['fake'])
-  add_executable(ojph_expand ${SOURCES})
-  add_executable(ojph_expand_simd ${SOURCES} ${OJPH_IMG_IO_SSE4})
-  target_compile_options(ojph_expand_simd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128 -msse4.1)
-  source_group("others" FILES ${OJPH_IMG_IO_SSE4})
-
-  target_link_libraries(ojph_expand PRIVATE openjph)
-  install(TARGETS ojph_expand DESTINATION bin)
-  target_link_libraries(ojph_expand_simd PRIVATE openjphsimd)
-  install(TARGETS ojph_expand_simd DESTINATION bin)    
+  if (OJPH_ENABLE_WASM_SIMD)
+    list(APPEND SOURCES ${OJPH_IMG_IO_SSE4})
+    source_group("others" FILES ${OJPH_IMG_IO_SSE4})
+    set_source_files_properties(${OJPH_IMG_IO_SSE4} PROPERTIES COMPILE_FLAGS -msse4.1)
+  endif()
 else()
   if (NOT OJPH_DISABLE_SIMD)
     if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
@@ -95,3 +86,11 @@ else()
 
   install(TARGETS ojph_expand DESTINATION bin)
 endif()
+
+add_executable(ojph_expand ${SOURCES})
+target_include_directories(ojph_expand PRIVATE ../common)
+target_link_libraries(ojph_expand PRIVATE openjph $<TARGET_NAME_IF_EXISTS:TIFF::TIFF>)
+
+install(TARGETS ojph_expand
+  EXPORT openjph-config
+)
