@@ -21,7 +21,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT AND (NOT EMSCRIPTEN))
     message(STATUS "     TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
   endif(TIFF_FOUND)
 
-endif(OJPH_ENABLE_TIFF_SUPPORT) 
+endif(OJPH_ENABLE_TIFF_SUPPORT AND (NOT EMSCRIPTEN)) 
 ############################################################
 
 # Add OPENEXR library 
@@ -51,7 +51,7 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
       message(STATUS " found OpenEXR with FindModule")
     endif(OpenEXR_FOUND_WITH_CONFIG)
   else(OpenEXR_FOUND)
-    message(STATUS "OpenEXR support has been enabled but no path to the OpenEXR or IlmBase library "
+    message(STATUS "OpenEXR support has been requested but no path to the OpenEXR or IlmBase library "
       "has been specified; please configure with -DCMAKE_PREFIX_PATH=<OpenEXR library directory>, "
       "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
   endif(OpenEXR_FOUND)
