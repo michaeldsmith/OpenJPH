@@ -19,7 +19,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT AND (NOT EMSCRIPTEN))
     message(STATUS "  TIFF_INCLUDE_DIRS = ${TIFF_INCLUDE_DIRS}")
     message(STATUS "       TIFF_LIBRARY = ${TIFF_LIBRARY}")
     message(STATUS "     TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
-  endif(TIFF_FOUND)
+  endif()
 
 endif() 
 ############################################################
