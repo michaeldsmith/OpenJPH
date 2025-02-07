@@ -12,7 +12,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT AND (NOT EMSCRIPTEN))
     message(WARNING "TIFF support has been requested but no path to the TIFF library "
     "has been specified; please configure with -DCMAKE_PREFIX_PATH=<TIFF library directory>, "
     "or disable TIFF support using -DOJPH_ENABLE_TIFF_SUPPORT=OFF.")
-  endif( TIFF_FOUND )
+  endif()
 
   if(TIFF_FOUND)
     message(STATUS "   TIFF_INCLUDE_DIR = ${TIFF_INCLUDE_DIR}")
@@ -21,7 +21,7 @@ if( OJPH_ENABLE_TIFF_SUPPORT AND (NOT EMSCRIPTEN))
     message(STATUS "     TIFF_LIBRARIES = ${TIFF_LIBRARIES}")
   endif(TIFF_FOUND)
 
-endif(OJPH_ENABLE_TIFF_SUPPORT AND (NOT EMSCRIPTEN)) 
+endif() 
 ############################################################
 
 # Add OPENEXR library 
@@ -49,12 +49,12 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
       message(STATUS " found OpenEXR with Config")
     else(OpenEXR_FOUND_WITH_CONFIG)
       message(STATUS " found OpenEXR with FindModule")
-    endif(OpenEXR_FOUND_WITH_CONFIG)
+    endif()
   else(OpenEXR_FOUND)
     message(STATUS "OpenEXR support has been requested but no path to the OpenEXR or IlmBase library "
       "has been specified; please configure with -DCMAKE_PREFIX_PATH=<OpenEXR library directory>, "
       "or disable OpenEXR support using -DOJPH_ENABLE_OpenEXR_SUPPORT=OFF.")
-  endif(OpenEXR_FOUND)
+  endif()
 
   if(IlmBase_FOUND)
     message(STATUS "IlmBase info:")
@@ -63,7 +63,7 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
     message(STATUS "  IlmBase_INCLUDE_DIRS = ${IlmBase_INCLUDE_DIRS}")
     message(STATUS "       IlmBase_LIBRARY = ${IlmBase_LIBRARY}")
     message(STATUS "     IlmBase_LIBRARIES = ${IlmBase_LIBRARIES}")
-  endif(IlmBase_FOUND)
+  endif()
 
   if(OpenEXR_FOUND)
     message(STATUS "OpenEXR info:")
@@ -73,10 +73,10 @@ if( OJPH_ENABLE_OPENEXR_SUPPORT )
       message(STATUS "  OpenEXR_INCLUDE_DIRS = ${OpenEXR_INCLUDE_DIRS}")
       message(STATUS "       OpenEXR_LIBRARY = ${OpenEXR_LIBRARY}")
       message(STATUS "     OpenEXR_LIBRARIES = ${OpenEXR_LIBRARIES}")
-    endif(NOT OpenEXR_FOUND_WITH_CONFIG)
-  endif(OpenEXR_FOUND)
+    endif()
+  endif()
 
-endif(OJPH_ENABLE_OPENEXR_SUPPORT) 
+endif() 
 ############################################################
 
 if (EMSCRIPTEN)
