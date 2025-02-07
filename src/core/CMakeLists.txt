@@ -1,6 +1,4 @@
 
-include_directories(common)
-
 file(GLOB CODESTREAM       "codestream/*.cpp" "codestream/*.h")
 file(GLOB CODESTREAM_SSE   "codestream/*_sse.cpp")
 file(GLOB CODESTREAM_SSE2  "codestream/*_sse2.cpp")
@@ -34,19 +32,12 @@ source_group("others"            FILES ${OTHERS})
 source_group("transform"         FILES ${TRANSFORM})
 
 if(EMSCRIPTEN)
-  add_compile_options(-std=c++11 -O3 -fexceptions)
-  add_library(openjph ${SOURCES})
-  add_library(openjphsimd ${SOURCES} ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
-
-  target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
-  target_include_directories(openjphsimd PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
-
-  target_compile_options(openjphsimd PRIVATE -DOJPH_ENABLE_WASM_SIMD -msimd128)
-
-  source_group("codestream" FILES ${CODESTREAM_WASM})
-  source_group("coding" FILES ${CODING_WASM})
-  source_group("transform" FILES ${TRANSFORM_WASM})
-
+  if (OJPH_ENABLE_WASM_SIMD)
+    list(APPEND SOURCES ${CODESTREAM_WASM} ${CODING_WASM} ${TRANSFORM_WASM})
+    source_group("codestream" FILES ${CODESTREAM_WASM})
+    source_group("coding" FILES ${CODING_WASM})
+    source_group("transform" FILES ${TRANSFORM_WASM})
+  endif()
 else()
   if (NOT OJPH_DISABLE_SIMD)
     if (("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_X86_64") OR ("${OJPH_TARGET_ARCH}" MATCHES "OJPH_ARCH_I386"))
@@ -114,9 +105,10 @@ else()
 
   endif()
 
-  add_library(openjph ${SOURCES})
 
 endif()
+
+add_library(openjph ${SOURCES})
 
 ## The option BUILD_SHARED_LIBS
 if (BUILD_SHARED_LIBS AND WIN32)
@@ -124,8 +116,8 @@ if (BUILD_SHARED_LIBS AND WIN32)
 endif()
 
 ## include library version/name
-target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
+target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
 
 if (MSVC)
   set(OJPH_LIB_NAME_STRING "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
@@ -139,3 +131,13 @@ else()
       SOVERSION "${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}"
       VERSION "${OPENJPH_VERSION}")
 endif()
+
+install(TARGETS openjph
+  EXPORT openjph-config
+)
+
+install(DIRECTORY common/
+  DESTINATION include/openjph
+  FILES_MATCHING
+  PATTERN "*.h"
+)
