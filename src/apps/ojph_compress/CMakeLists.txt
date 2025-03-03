@@ -105,6 +105,4 @@ target_link_libraries(ojph_compress PRIVATE openjph
   # ZLIB for OpenEXR 2.x:
   $<$<TARGET_EXISTS:ZLIB::ZLIB>:ZLIB::ZLIB>)
 
-install(TARGETS ojph_compress
-  EXPORT openjph-config
-)
+install(TARGETS ojph_compress)
