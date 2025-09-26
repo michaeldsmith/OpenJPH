@@ -116,6 +116,17 @@ else()
 
 endif()
 
+## Set debug postfix for different platforms
+if (MSVC)
+  if (NOT DEFINED CMAKE_DEBUG_POSTFIX)
+    set(CMAKE_DEBUG_POSTFIX "d")
+  endif()
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  if (NOT DEFINED CMAKE_DEBUG_POSTFIX)
+    set(CMAKE_DEBUG_POSTFIX "_d")
+  endif()
+endif()
+
 add_library(openjph ${SOURCES})
 
 ## The option BUILD_SHARED_LIBS
@@ -124,11 +135,9 @@ if (BUILD_SHARED_LIBS AND WIN32)
 endif()
 
 ## include library version/name
-if (NOT MSVC)
-  target_compile_options(openjph PRIVATE -fPIC)
-endif()
+set_target_properties(openjph PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(openjph PUBLIC _FILE_OFFSET_BITS=64)
-target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include/openjph>)
+target_include_directories(openjph PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common> $<INSTALL_INTERFACE:include>)
 
 if (MSVC)
   set(OJPH_LIB_NAME_STRING "openjph.${OPENJPH_VERSION_MAJOR}.${OPENJPH_VERSION_MINOR}")
