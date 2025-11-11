@@ -2,9 +2,9 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman
-// Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
-// Copyright (c) 2019, The University of New South Wales, Australia
+// Copyright (c) 2025, Aous Naman
+// Copyright (c) 2025, Kakadu Software Pty Ltd, Australia
+// Copyright (c) 2025, The University of New South Wales, Australia
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -30,9 +30,54 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //***************************************************************************/
 // This file is part of the OpenJPH software implementation.
-// File: ojph_base.h
+// File: ojph_mem.c
+// Author: Aous Naman
+// Date: 17 October 2025
 //***************************************************************************/
 
-#define OPENJPH_VERSION_MAJOR 0
-#define OPENJPH_VERSION_MINOR 25
-#define OPENJPH_VERSION_PATCH 2
+#include <stdlib.h>
+
+////////////////////////////////////////////////////////////////////////////////
+// OS detection definitions for C only
+////////////////////////////////////////////////////////////////////////////////
+#if (defined WIN32) || (defined _WIN32) || (defined _WIN64)
+#define OJPH_OS_WINDOWS
+#elif (defined __APPLE__)
+#define OJPH_OS_APPLE
+#elif (defined __ANDROID__)
+#define OJPH_OS_ANDROID
+#elif (defined __linux)
+#define OJPH_OS_LINUX
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+// Defines for dll in C only
+////////////////////////////////////////////////////////////////////////////////
+#if defined(OJPH_OS_WINDOWS) && defined(OJPH_BUILD_SHARED_LIBRARY)
+#define OJPH_EXPORT __declspec(dllexport)
+#else
+#define OJPH_EXPORT
+#endif
+
+////////////////////////////////////////////////////////////////////////////
+#ifdef OJPH_OS_WINDOWS
+  OJPH_EXPORT void* ojph_aligned_malloc(size_t alignment, size_t size)
+  {
+    return _aligned_malloc(size, alignment);
+  }
+
+  OJPH_EXPORT void ojph_aligned_free(void* pointer)
+  {
+    _aligned_free(pointer);
+  }
+#else
+  void* ojph_aligned_malloc(size_t alignment, size_t size)
+  {
+    return aligned_alloc(alignment, size);
+  }
+
+  void ojph_aligned_free(void* pointer)
+  {
+    free(pointer);
+  }
+#endif
