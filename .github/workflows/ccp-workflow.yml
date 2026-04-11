@@ -245,7 +245,6 @@ jobs:
   build_ppc64:
     name: Linux-PPC64 Build
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.inputs.job_to_run == 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - uses: uraimo/run-on-arch-action@v2
