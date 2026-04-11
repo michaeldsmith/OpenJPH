@@ -12,7 +12,8 @@ on:
         type: 'choice'
         options:
           - 'build_arm32'
-        default: 'build_arm32'
+          - 'build_ppc64'
+        default: 'build_ppc64'
       log_level:
         description: 'Log level'
         required: false
@@ -31,7 +32,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' || github.event.inputs.job_to_run != 'build_ppc64' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -232,6 +233,26 @@ jobs:
     - uses: uraimo/run-on-arch-action@v2
       with:
         arch: armv7
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y cmake make g++ libtiff-dev python3
+        run: |
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+          make
+          ctest --output-on-failure
+
+  build_ppc64:
+    name: Linux-PPC64 Build
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'build_ppc64' }}
+    steps:
+    - uses: actions/checkout@v5
+    - uses: uraimo/run-on-arch-action@v2
+      with:
+        arch: ppc64
         distro: ubuntu22.04
         githubToken: ${{ github.token }}
         install: |
