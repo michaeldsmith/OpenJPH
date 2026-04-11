@@ -247,10 +247,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
-    - uses: uraimo/run-on-arch-action@v2
+    - uses: uraimo/run-on-arch-action@v3
       with:
         arch: ppc64
-        distro: ubuntu20.04
+        distro: ubuntu22.04
         githubToken: ${{ github.token }}
         install: |
           apt-get update -q -y
