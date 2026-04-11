@@ -12,13 +12,11 @@ on:
         type: 'choice'
         options:
           - 'build_arm32'
-          - 'build_ppc64'
-        default: 'build_ppc64'
+        default: 'build_arm32'
       log_level:
         description: 'Log level'
         required: false
         default: 'info'
-
 
 jobs:
   build:
@@ -32,7 +30,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' || github.event.inputs.job_to_run != 'build_ppc64' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -247,7 +245,7 @@ jobs:
   build_ppc64:
     name: Linux-PPC64 Build
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'build_ppc64' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.inputs.job_to_run == 'build_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - uses: uraimo/run-on-arch-action@v2
