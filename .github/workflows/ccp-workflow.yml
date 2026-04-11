@@ -242,14 +242,14 @@ jobs:
           make
           ctest --output-on-failure
 
-  build_ppc64:
-    name: Linux-PPC64 Build
+  build_s390x:
+    name: Linux-s390x (big-endian) Build
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
     - uses: uraimo/run-on-arch-action@v3
       with:
-        arch: ppc64
+        arch: s390x
         distro: ubuntu22.04
         githubToken: ${{ github.token }}
         install: |
