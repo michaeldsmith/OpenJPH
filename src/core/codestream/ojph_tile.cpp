@@ -719,7 +719,7 @@ namespace ojph {
               OJPH_ERROR(0x0003008A, "Error writing to file");
 
             //write start of data
-            ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : JP2K_MARKER::SOD;
+            ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : (ui16)JP2K_MARKER::SOD;
             if (!file->write(&t, 2))
               OJPH_ERROR(0x0003008B, "Error writing to file");
           }
