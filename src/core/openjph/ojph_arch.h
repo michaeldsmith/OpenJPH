@@ -316,6 +316,11 @@ namespace ojph {
     return reinterpret_cast<T *>(p);
   }
 
+  // If the first byte in memory is 0x01, the machine is Little Endian.
+  // If the first byte is 0x00, the machine is Big Endian.
+  const uint16_t n = 0x0001;
+  const bool is_machine_little_endian = (*((uint8_t *)&n) == 0x01);
+
 }
 
 #endif // !OJPH_ARCH_H

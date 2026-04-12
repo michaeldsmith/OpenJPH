@@ -195,7 +195,7 @@ namespace ojph {
             ui16 com_len;
             if (bbp->file->read(&com_len, 2) != 2)
               throw "error reading from file";
-            com_len = swap_byte(com_len);
+            com_len = is_machine_little_endian ? swap_byte(com_len) : com_len;
             if (com_len != 4)
               throw "something is wrong with SOP length";
             int result = 

@@ -641,29 +641,29 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::SIZ;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lsiz);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lsiz) : Lsiz;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Rsiz);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Rsiz) : Rsiz;
       result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_byte(Xsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(Xsiz) : Xsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(Ysiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(Ysiz) : Ysiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(XOsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(XOsiz) : XOsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(YOsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(YOsiz) : YOsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(XTsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(XTsiz) : XTsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(YTsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(YTsiz) : YTsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(XTOsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(XTOsiz) : XTOsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui32*)buf = swap_byte(YTOsiz);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(YTOsiz) : YTOsiz;
       result &= file->write(&buf, 4) == 4;
-      *(ui16*)buf = swap_byte(Csiz);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Csiz) : Csiz;
       result &= file->write(&buf, 2) == 2;
       for (int c = 0; c < Csiz; ++c)
       {
@@ -681,13 +681,13 @@ namespace ojph {
     {
       if (file->read(&Lsiz, 2) != 2)
         OJPH_ERROR(0x00050041, "error reading SIZ marker");
-      Lsiz = swap_byte(Lsiz);
+      Lsiz = is_machine_little_endian ? swap_byte(Lsiz) : Lsiz;
       int num_comps = (Lsiz - 38) / 3;
       if (Lsiz != 38 + 3 * num_comps)
         OJPH_ERROR(0x00050042, "error in SIZ marker length");
       if (file->read(&Rsiz, 2) != 2)
         OJPH_ERROR(0x00050043, "error reading SIZ marker");
-      Rsiz = swap_byte(Rsiz);
+      Rsiz = is_machine_little_endian ? swap_byte(Rsiz) : Rsiz;
       if ((Rsiz & 0x4000) == 0)
         OJPH_ERROR(0x00050044,
           "Rsiz bit 14 is not set (this is not a JPH file)");
@@ -695,31 +695,31 @@ namespace ojph {
         OJPH_WARN(0x00050001, "Rsiz in SIZ has unimplemented fields");
       if (file->read(&Xsiz, 4) != 4)
         OJPH_ERROR(0x00050045, "error reading SIZ marker");
-      Xsiz = swap_byte(Xsiz);
+      Xsiz = is_machine_little_endian ? swap_byte(Xsiz) : Xsiz;
       if (file->read(&Ysiz, 4) != 4)
         OJPH_ERROR(0x00050046, "error reading SIZ marker");
-      Ysiz = swap_byte(Ysiz);
+      Ysiz = is_machine_little_endian ? swap_byte(Ysiz) : Ysiz;
       ui32 t_XOsiz, t_YOsiz;
       if (file->read(&t_XOsiz, 4) != 4)
         OJPH_ERROR(0x00050047, "error reading SIZ marker");
       if (file->read(&t_YOsiz, 4) != 4)
         OJPH_ERROR(0x00050048, "error reading SIZ marker");
-      set_image_offset(point(swap_byte(t_XOsiz), swap_byte(t_YOsiz)));
+      set_image_offset(point(is_machine_little_endian ? swap_byte(t_XOsiz) : t_XOsiz, is_machine_little_endian ? swap_byte(t_YOsiz) : t_YOsiz));
       ui32 t_XTsiz, t_YTsiz;
       if (file->read(&t_XTsiz, 4) != 4)
         OJPH_ERROR(0x00050049, "error reading SIZ marker");
       if (file->read(&t_YTsiz, 4) != 4)
         OJPH_ERROR(0x0005004A, "error reading SIZ marker");
-      set_tile_size(size(swap_byte(t_XTsiz), swap_byte(t_YTsiz)));
+      set_tile_size(size(is_machine_little_endian ? swap_byte(t_XTsiz) : t_XTsiz, is_machine_little_endian ? swap_byte(t_YTsiz) : t_YTsiz));
       ui32 t_XTOsiz, t_YTOsiz;
       if (file->read(&t_XTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004B, "error reading SIZ marker");
       if (file->read(&t_YTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004C, "error reading SIZ marker");
-      set_tile_offset(point(swap_byte(t_XTOsiz), swap_byte(t_YTOsiz)));
+      set_tile_offset(point(is_machine_little_endian ? swap_byte(t_XTOsiz) : t_XTOsiz, is_machine_little_endian ? swap_byte(t_YTOsiz) : t_YTOsiz));
       if (file->read(&Csiz, 2) != 2)
         OJPH_ERROR(0x0005004D, "error reading SIZ marker");
-      Csiz = swap_byte(Csiz);
+      Csiz = is_machine_little_endian ? swap_byte(Csiz) : Csiz;
       if (Csiz != num_comps)
         OJPH_ERROR(0x0005004E, "Csiz does not match the SIZ marker size");
       set_num_components(Csiz);
@@ -792,14 +792,14 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::CAP;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lcap);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lcap) : Lcap;
       result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_byte(Pcap);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(Pcap) : Pcap;
       result &= file->write(&buf, 4) == 4;
 
-      *(ui16*)buf = swap_byte(Ccap[0]);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Ccap[0]) : Ccap[0];
       result &= file->write(&buf, 2) == 2;
 
       return result;
@@ -810,10 +810,10 @@ namespace ojph {
     {
       if (file->read(&Lcap, 2) != 2)
         OJPH_ERROR(0x00050061, "error reading CAP marker");
-      Lcap = swap_byte(Lcap);
+      Lcap = is_machine_little_endian ? swap_byte(Lcap) : Lcap;
       if (file->read(&Pcap, 4) != 4)
         OJPH_ERROR(0x00050062, "error reading CAP marker");
-      Pcap = swap_byte(Pcap);
+      Pcap = is_machine_little_endian ? swap_byte(Pcap) : Pcap;
       ui32 count = population_count(Pcap);
       if (Pcap & 0xFFFDFFFF)
         OJPH_ERROR(0x00050063,
@@ -861,15 +861,15 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::COD;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lcod);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lcod) : Lcod;
       result &= file->write(&buf, 2) == 2;
       *(ui8*)buf = Scod;
       result &= file->write(&buf, 1) == 1;
       *(ui8*)buf = SGCod.prog_order;
       result &= file->write(&buf, 1) == 1;
-      *(ui16*)buf = swap_byte(SGCod.num_layers);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(SGCod.num_layers) : SGCod.num_layers;
       result &= file->write(&buf, 2) == 2;
       *(ui8*)buf = SGCod.mc_trans;
       result &= file->write(&buf, 1) == 1;
@@ -918,9 +918,9 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::COC;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lcod);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lcod) : Lcod;
       result &= file->write(&buf, 2) == 2;
       if (num_comps < 257)
       {
@@ -929,7 +929,7 @@ namespace ojph {
       }
       else
       {
-        *(ui16*)buf = swap_byte(comp_idx);
+        *(ui16*)buf = is_machine_little_endian ? swap_byte(comp_idx) : comp_idx;
         result &= file->write(&buf, 2) == 2;
       }
       *(ui8*)buf = Scod;
@@ -958,7 +958,7 @@ namespace ojph {
 
       if (file->read(&Lcod, 2) != 2)
         OJPH_ERROR(0x00050071, "error reading COD segment");
-      Lcod = swap_byte(Lcod);
+      Lcod = is_machine_little_endian ? swap_byte(Lcod) : Lcod;
       if (file->read(&Scod, 1) != 1)
         OJPH_ERROR(0x00050072, "error reading COD segment");
       if (file->read(&SGCod.prog_order, 1) != 1)
@@ -966,7 +966,7 @@ namespace ojph {
       if (file->read(&SGCod.num_layers, 2) != 2)
       { OJPH_ERROR(0x00050074, "error reading COD segment"); }
       else
-        SGCod.num_layers = swap_byte(SGCod.num_layers);
+        SGCod.num_layers = is_machine_little_endian ? swap_byte(SGCod.num_layers) : SGCod.num_layers;
       if (file->read(&SGCod.mc_trans, 1) != 1)
         OJPH_ERROR(0x00050075, "error reading COD segment");
       if (file->read(&SPcod.num_decomp, 1) != 1)
@@ -1011,7 +1011,7 @@ namespace ojph {
       this->top_cod = top_cod;
       if (file->read(&Lcod, 2) != 2)
         OJPH_ERROR(0x00050121, "error reading COC segment");
-      Lcod = swap_byte(Lcod);
+      Lcod = is_machine_little_endian ? swap_byte(Lcod) : Lcod;
       if (num_comps < 257) {
         ui8 t;
         if (file->read(&t, 1) != 1)
@@ -1021,7 +1021,7 @@ namespace ojph {
       else {
         if (file->read(&comp_idx, 2) != 2)
           OJPH_ERROR(0x00050123, "error reading COC segment");
-        comp_idx = swap_byte(comp_idx);
+        comp_idx = is_machine_little_endian ? swap_byte(comp_idx) : comp_idx;
       }
       if (file->read(&Scod, 1) != 1)
         OJPH_ERROR(0x00050124, "error reading COC segment");
@@ -1539,9 +1539,9 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::QCD;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lqcd);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lqcd) : Lqcd;
       result &= file->write(&buf, 2) == 2;
       *(ui8*)buf = Sqcd;
       result &= file->write(&buf, 1) == 1;
@@ -1555,7 +1555,7 @@ namespace ojph {
       else if (irrev == 2)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui16*)buf = swap_byte(SPqcd.u16[i]);
+          *(ui16*)buf = is_machine_little_endian ? swap_byte(SPqcd.u16[i]) : SPqcd.u16[i];
           result &= file->write(&buf, 2) == 2;
         }
       else
@@ -1597,9 +1597,9 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::QCC;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lqcd);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lqcd) : Lqcd;
       result &= file->write(&buf, 2) == 2;
       if (num_comps < 257)
       {
@@ -1608,7 +1608,7 @@ namespace ojph {
       }
       else
       {
-        *(ui16*)buf = swap_byte(comp_idx);
+        *(ui16*)buf = is_machine_little_endian ? swap_byte(comp_idx) : comp_idx;
         result &= file->write(&buf, 2) == 2;
       }
       *(ui8*)buf = Sqcd;
@@ -1622,7 +1622,7 @@ namespace ojph {
       else if (irrev == 2)
         for (ui32 i = 0; i < num_subbands; ++i)
         {
-          *(ui16*)buf = swap_byte(SPqcd.u16[i]);
+          *(ui16*)buf = is_machine_little_endian ? swap_byte(SPqcd.u16[i]) : SPqcd.u16[i];
           result &= file->write(&buf, 2) == 2;
         }
       else
@@ -1649,7 +1649,7 @@ namespace ojph {
     {
       if (file->read(&Lqcd, 2) != 2)
         OJPH_ERROR(0x00050081, "error reading QCD marker");
-      Lqcd = swap_byte(Lqcd);
+      Lqcd = is_machine_little_endian ? swap_byte(Lqcd) : Lqcd;
       if (file->read(&Sqcd, 1) != 1)
         OJPH_ERROR(0x00050082, "error reading QCD marker");
       if ((Sqcd & 0x1F) == 0)
@@ -1684,7 +1684,7 @@ namespace ojph {
         {
           if (file->read(&SPqcd.u16[i], 2) != 2)
             OJPH_ERROR(0x00050087, "error reading QCD marker");
-          SPqcd.u16[i] = swap_byte(SPqcd.u16[i]);
+          SPqcd.u16[i] = is_machine_little_endian ? swap_byte(SPqcd.u16[i]) : SPqcd.u16[i];
         }
       }
       else
@@ -1696,7 +1696,7 @@ namespace ojph {
     {
       if (file->read(&Lqcd, 2) != 2)
         OJPH_ERROR(0x000500A1, "error reading QCC marker");
-      Lqcd = swap_byte(Lqcd);
+      Lqcd = is_machine_little_endian ? swap_byte(Lqcd) : Lqcd;
       if (num_comps < 257)
       {
         ui8 v;
@@ -1708,7 +1708,7 @@ namespace ojph {
       {
         if (file->read(&comp_idx, 2) != 2)
           OJPH_ERROR(0x000500A3, "error reading QCC marker");
-        comp_idx = swap_byte(comp_idx);
+        comp_idx = is_machine_little_endian ? swap_byte(comp_idx) : comp_idx;
       }
       if (file->read(&Sqcd, 1) != 1)
         OJPH_ERROR(0x000500A4, "error reading QCC marker");
@@ -1745,7 +1745,7 @@ namespace ojph {
         {
           if (file->read(&SPqcd.u16[i], 2) != 2)
             OJPH_ERROR(0x000500A9, "error reading QCC marker");
-          SPqcd.u16[i] = swap_byte(SPqcd.u16[i]);
+          SPqcd.u16[i] = is_machine_little_endian ? swap_byte(SPqcd.u16[i]) : SPqcd.u16[i];
         }
       }
       else
@@ -1938,11 +1938,11 @@ namespace ojph {
         if (p->enabled)
         {
           *(ui16*)buf = JP2K_MARKER::NLT;
-          *(ui16*)buf = swap_byte(*(ui16*)buf);
+          *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
           result &= file->write(&buf, 2) == 2;
-          *(ui16*)buf = swap_byte(p->Lnlt);
+          *(ui16*)buf = is_machine_little_endian ? swap_byte(p->Lnlt) : p->Lnlt;
           result &= file->write(&buf, 2) == 2;
-          *(ui16*)buf = swap_byte(p->Cnlt);
+          *(ui16*)buf = is_machine_little_endian ? swap_byte(p->Cnlt) : p->Cnlt;
           result &= file->write(&buf, 2) == 2;
           result &= file->write(&p->BDnlt, 1) == 1;
           result &= file->write(&p->Tnlt, 1) == 1;
@@ -1960,11 +1960,11 @@ namespace ojph {
       if (file->read(buf, 6) != 6)
         OJPH_ERROR(0x00050141, "error reading NLT marker segment");
 
-      ui16 length = swap_byte(*(ui16*)buf);
+      ui16 length = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       if (length != 6 || (buf[5] != 3 && buf[5] != 0)) // wrong length or type
         OJPH_ERROR(0x00050142, "Unsupported NLT type %d\n", buf[5]);
 
-      ui16 comp = swap_byte(*(ui16*)(buf + 2));
+      ui16 comp = is_machine_little_endian ? swap_byte(*(ui16*)(buf + 2)) : *(ui16*)(buf + 2);
       param_nlt* p = get_nlt_object(comp);
       if (p == NULL)
         p = add_object(comp);
@@ -2057,13 +2057,13 @@ namespace ojph {
       this->Psot = payload_len + 14; //inc. SOT marker, field & SOD
 
       *(ui16*)buf = JP2K_MARKER::SOT;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lsot);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lsot) : Lsot;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Isot);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Isot) : Isot;
       result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_byte(Psot);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(Psot) : Psot;
       result &= file->write(&buf, 4) == 4;
       result &= file->write(&TPsot, 1) == 1;
       result &= file->write(&TNsot, 1) == 1;
@@ -2079,13 +2079,13 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::SOT;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Lsot);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Lsot) : Lsot;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Isot);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Isot) : Isot;
       result &= file->write(&buf, 2) == 2;
-      *(ui32*)buf = swap_byte(payload_len + 14);
+      *(ui32*)buf = is_machine_little_endian ? swap_byte(payload_len + 14) : payload_len + 14;
       result &= file->write(&buf, 4) == 4;
       result &= file->write(&TPsot, 1) == 1;
       result &= file->write(&TNsot, 1) == 1;
@@ -2104,7 +2104,7 @@ namespace ojph {
           Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
           return false;
         }
-        Lsot = swap_byte(Lsot);
+        Lsot = is_machine_little_endian ? swap_byte(Lsot) : Lsot;
         if (Lsot != 10)
         {
           OJPH_INFO(0x00050092, "error in SOT length");
@@ -2117,7 +2117,7 @@ namespace ojph {
           Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
           return false;
         }
-        Isot = swap_byte(Isot);
+        Isot = is_machine_little_endian ? swap_byte(Isot) : Isot;
         if (Isot == 0xFFFF)
         {
           OJPH_INFO(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
@@ -2130,7 +2130,7 @@ namespace ojph {
           Lsot = 0; Isot = 0; Psot = 0; TPsot = 0; TNsot = 0;
           return false;
         }
-        Psot = swap_byte(Psot);
+        Psot = is_machine_little_endian ? swap_byte(Psot) : Psot;
         if (file->read(&TPsot, 1) != 1)
         {
           OJPH_INFO(0x00050096, "error reading SOT marker");
@@ -2148,17 +2148,17 @@ namespace ojph {
       {
         if (file->read(&Lsot, 2) != 2)
           OJPH_ERROR(0x00050091, "error reading SOT marker");
-        Lsot = swap_byte(Lsot);
+        Lsot = is_machine_little_endian ? swap_byte(Lsot) : Lsot;
         if (Lsot != 10)
           OJPH_ERROR(0x00050092, "error in SOT length");
         if (file->read(&Isot, 2) != 2)
           OJPH_ERROR(0x00050093, "error reading SOT tile index");
-        Isot = swap_byte(Isot);
+        Isot = is_machine_little_endian ? swap_byte(Isot) : Isot;
         if (Isot == 0xFFFF)
           OJPH_ERROR(0x00050094, "tile index in SOT marker cannot be 0xFFFF");
         if (file->read(&Psot, 4) != 4)
           OJPH_ERROR(0x00050095, "error reading SOT marker");
-        Psot = swap_byte(Psot);
+        Psot = is_machine_little_endian ? swap_byte(Psot) : Psot;
         if (file->read(&TPsot, 1) != 1)
           OJPH_ERROR(0x00050096, "error reading SOT marker");
         if (file->read(&TNsot, 1) != 1)
@@ -2208,17 +2208,17 @@ namespace ojph {
       bool result = true;
 
       *(ui16*)buf = JP2K_MARKER::TLM;
-      *(ui16*)buf = swap_byte(*(ui16*)buf);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(*(ui16*)buf) : *(ui16*)buf;
       result &= file->write(&buf, 2) == 2;
-      *(ui16*)buf = swap_byte(Ltlm);
+      *(ui16*)buf = is_machine_little_endian ? swap_byte(Ltlm) : Ltlm;
       result &= file->write(&buf, 2) == 2;
       result &= file->write(&Ztlm, 1) == 1;
       result &= file->write(&Stlm, 1) == 1;
       for (ui32 i = 0; i < num_pairs; ++i)
       {
-        *(ui16*)buf = swap_byte(pairs[i].Ttlm);
+        *(ui16*)buf = is_machine_little_endian ? swap_byte(pairs[i].Ttlm) : pairs[i].Ttlm;
         result &= file->write(&buf, 2) == 2;
-        *(ui32*)buf = swap_byte(pairs[i].Ptlm);
+        *(ui32*)buf = is_machine_little_endian ? swap_byte(pairs[i].Ptlm) : pairs[i].Ptlm;
         result &= file->write(&buf, 4) == 4;
       }
       return result;
@@ -2319,10 +2319,10 @@ namespace ojph {
 
       if (file->read(&Ldfs, 2) != 2)
         OJPH_ERROR(0x000500D1, "error reading DFS-Ldfs parameter");
-      Ldfs = swap_byte(Ldfs);
+      Ldfs = is_machine_little_endian ? swap_byte(Ldfs) : Ldfs;
       if (file->read(&Sdfs, 2) != 2)
         OJPH_ERROR(0x000500D2, "error reading DFS-Sdfs parameter");
-      Sdfs = swap_byte(Sdfs);
+      Sdfs = is_machine_little_endian ? swap_byte(Sdfs) : Sdfs;
       if (Sdfs > 15)
         OJPH_ERROR(0x000500D3, "The DFS-Sdfs parameter is %d, which is "
           "larger than the permissible 15", Sdfs);
@@ -2400,7 +2400,7 @@ namespace ojph {
         ui16 v;
         if (file->read(&v, 2) != 2) return false;
         bytes -= 2;
-        K = swap_byte(v);
+        K = is_machine_little_endian ? swap_byte(v) : v;
       }
       else if (coeff_type == 2) { // float
         union {
@@ -2409,7 +2409,7 @@ namespace ojph {
         } v;
         if (file->read(&v.i, 4) != 4) return false;
         bytes -= 4;
-        v.i = swap_byte(v.i);
+        v.i = is_machine_little_endian ? swap_byte(v.i) : v.i;
         K = v.f;
       }
       else if (coeff_type == 3) { // double
@@ -2419,7 +2419,7 @@ namespace ojph {
         } v;
         if (file->read(&v.i, 8) != 8) return false;
         bytes -= 8;
-        v.i = swap_byte(v.i);
+        v.i = is_machine_little_endian ? swap_byte(v.i) : v.i;
         K = (float)v.d;
       }
       else if (coeff_type == 4) { // 128 bit float
@@ -2428,7 +2428,7 @@ namespace ojph {
         bytes -= 8;
         if (file->read(&v1, 8) != 8) return false; // v1 not needed
         bytes -= 8;
-        v = swap_byte(v);
+        v = is_machine_little_endian ? swap_byte(v) : v;
 
         union {
           float f;
@@ -2466,7 +2466,7 @@ namespace ojph {
         si16 v;
         if (file->read(&v, 2) != 2) return false;
         bytes -= 2;
-        K = (si16)swap_byte((ui16)v);
+        K = is_machine_little_endian ? (si16)swap_byte((ui16)v) : v;
       }
       else
         return false;
@@ -2481,13 +2481,13 @@ namespace ojph {
 
       if (file->read(&Latk, 2) != 2)
         OJPH_ERROR(0x000500E1, "error reading ATK-Latk parameter");
-      Latk = swap_byte(Latk);
+      Latk = is_machine_little_endian ? swap_byte(Latk) : Latk;
       si32 bytes = Latk - 2;
       ojph::ui16 temp_Satk;
       if (file->read(&temp_Satk, 2) != 2)
         OJPH_ERROR(0x000500E2, "error reading ATK-Satk parameter");
       bytes -= 2;
-      temp_Satk = swap_byte(temp_Satk);
+      temp_Satk = is_machine_little_endian ? swap_byte(temp_Satk) : temp_Satk;
       int tmp_idx = temp_Satk & 0xFF;
       if ((top_atk && top_atk->get_atk(tmp_idx) != NULL)
         || tmp_idx == 0 || tmp_idx == 1)
@@ -2533,7 +2533,7 @@ namespace ojph {
           if (file->read(&d[s].rev.Batk, 2) != 2)
             OJPH_ERROR(0x000500EA, "error reading ATK-Batk parameter");
           bytes -= 2;
-          d[s].rev.Batk = (si16)swap_byte((ui16)d[s].rev.Batk);
+          d[s].rev.Batk = is_machine_little_endian ? (si16)swap_byte((ui16)d[s].rev.Batk) : d[s].rev.Batk;
           ui8 LCatk;
           if (file->read(&LCatk, 1) != 1)
             OJPH_ERROR(0x000500EB, "error reading ATK-LCatk parameter");
