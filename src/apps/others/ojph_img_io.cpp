@@ -141,7 +141,7 @@ namespace ojph {
       *p++ = (ui8) val;
     }
   }
-
+#if 0
   void gen_cvrt_32b1c_to_16ub1c_le(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
                                    ui32 bit_depth, ui32 count)
@@ -186,7 +186,7 @@ namespace ojph {
       *p++ = (ui16) val;
     }
   }
-
+#endif
   void gen_cvrt_32b1c_to_16ub1c_be(const line_buf *ln0, const line_buf *ln1, 
                                    const line_buf *ln2, void *dp, 
                                    ui32 bit_depth, ui32 count)
@@ -201,7 +201,7 @@ namespace ojph {
       int val = *sp++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = be2le((ui16) val);
+      *p++ = is_machine_little_endian ? be2le((ui16) val) : (ui16) val;
     }
   }
 
@@ -220,15 +220,15 @@ namespace ojph {
       val = *sp0++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = be2le((ui16) val);
+      *p++ = is_machine_little_endian ? be2le((ui16) val) : (ui16) val;
       val = *sp1++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = be2le((ui16) val);
+      *p++ = is_machine_little_endian ? be2le((ui16) val) : (ui16) val;
       val = *sp2++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = be2le((ui16) val);
+      *p++ = is_machine_little_endian ? be2le((ui16) val) : (ui16) val;
     }
   }
 
@@ -368,7 +368,7 @@ namespace ojph {
       const ui16* sp = (ui16*)temp_buf + comp_num;
       si32* dp = line->i32;
       for (ui32 i = width; i > 0; --i, sp+=num_comps)
-        *dp++ = (si32)be2le(*sp);
+        *dp++ = is_machine_little_endian ? (si32)be2le(*sp) : (si32)*sp;
     }
 
     return width;

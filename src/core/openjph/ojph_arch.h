@@ -317,10 +317,14 @@ namespace ojph {
   }
 
   // If the first byte in memory is 0x01, the machine is Little Endian.
-  // If the first byte is 0x00, the machine is Big Endian.
-  const uint16_t n = 0x0001;
-  const bool is_machine_little_endian = (*((uint8_t *)&n) == 0x01);
-
+  // If the first byte in memory is 0x00, the machine is Big Endian.
+  static bool check_if_machine_is_little_endian()
+  {
+    const uint16_t n = 0x0001;
+    bool is_machine_little_endian = (*((uint8_t *)&n) == 0x01);
+    return is_machine_little_endian;
+  }
+  const bool is_machine_little_endian = check_if_machine_is_little_endian();
 }
 
 #endif // !OJPH_ARCH_H

@@ -1,0 +1,39 @@
+# from https://til.simonwillison.net/docker/emulate-s390x-with-qemu
+# before running this docker, you need to set up QEMU for s390x emulation on your host machine. You can do this by running:
+# docker run --rm --privileged multiarch/qemu-user-static --reset
+
+
+# Use an explicit s390x Ubuntu base image
+FROM --platform=linux/s390x ubuntu:latest
+
+# Install necessary tools to build OpenJPH
+RUN apt-get -y update
+RUN apt-get -y install cmake
+RUN apt-get -y install g++
+RUN apt-get -y install libtiff-dev
+
+# build OpenJPH
+COPY . /usr/src/OpenJPH
+WORKDIR /usr/src/OpenJPH/build
+RUN rm -R * || true 
+RUN cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=ON ..
+RUN make
+RUN make install
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
+# to run this docker in Ubuntu or WSL do the following steps:
+# 1 - install QEMU in ubuntu
+# sudo apt install qemu-user-static binfmt-support
+
+# 2 - set special permissions for docker to use QEMU for s390x emulation 
+# see from https://til.simonwillison.net/docker/emulate-s390x-with-qemu
+# sudo docker run --rm --privileged multiarch/qemu-user-static --reset
+
+# 3a - make sure Docker Desktop on windows host if running docker from WSL Ubuntu
+# 3b - Build the docker image
+# sudo docker build -f Dockerfile_390x_big_endian -t s390x-ubuntu .
+
+# 4a - run the docker (in isolated container)
+# sudo docker run -it --rm s390x-ubuntu /bin/bash
+# 4b - run the docker (in mapping host directory /mnt/c/temp to container directory /tmp)
+# sudo docker run -it --rm -v /mnt/c/temp:/tmp s390x-ubuntu /bin/bash
