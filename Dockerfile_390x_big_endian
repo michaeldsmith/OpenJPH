@@ -6,6 +6,9 @@
 # Use an explicit s390x Ubuntu base image
 FROM --platform=linux/s390x ubuntu:latest
 
+# check machine architecture
+RUN uname -m
+
 # Install necessary tools to build OpenJPH
 RUN apt-get -y update
 RUN apt-get -y install cmake
@@ -27,7 +30,8 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # 2 - set special permissions for docker to use QEMU for s390x emulation 
 # see from https://til.simonwillison.net/docker/emulate-s390x-with-qemu
-# sudo docker run --rm --privileged multiarch/qemu-user-static --reset
+# see https://oneuptime.com/blog/post/2026-02-08-how-to-fix-docker-exec-format-error-on-multi-platform-images/view
+# sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
 # 3a - make sure Docker Desktop on windows host if running docker from WSL Ubuntu
 # 3b - Build the docker image
@@ -35,5 +39,12 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # 4a - run the docker (in isolated container)
 # sudo docker run -it --rm s390x-ubuntu /bin/bash
-# 4b - run the docker (in mapping host directory /mnt/c/temp to container directory /tmp)
+# 4b - run the docker (mapping host directory /mnt/c/temp to container directory /tmp)
 # sudo docker run -it --rm -v /mnt/c/temp:/tmp s390x-ubuntu /bin/bash
+
+# to clear all existing docker images
+# docker system prune -a
+
+# docker in a docker for multi-platform builds
+# see https://blog.devops.dev/how-to-install-qemu-for-multi-platform-builds-in-a-docker-in-docker-dind-container-83eae2590ac8
+# docker run --privileged --rm tonistiigi/binfmt --install all

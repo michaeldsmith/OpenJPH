@@ -1543,7 +1543,13 @@ namespace ojph {
           val |= (val & 0x800000) ? 0xFF000000 : 0;
           *dp++ = val;
           // this only works for little endian architecture
-          sp = (si32*)((si8*)sp + 3);
+          if( true == is_machine_little_endian)
+            sp = (si32*)((si8*)sp + 3);
+          else
+            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
+              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
+              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
+            exit(-1);
         }
       }
       else {
@@ -1551,6 +1557,13 @@ namespace ojph {
         for (ui32 i = width; i > 0; --i) {
           *dp++ = (si32)(*sp & 0xFFFFFFu);
           // this only works for little endian architecture
+          if( true == is_machine_little_endian)
+            sp = (ui32*)((ui8*)sp + 3);
+          else
+            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
+              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
+              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
+            exit(-1);
           sp = (ui32*)((ui8*)sp + 3);
         }
       }
@@ -1683,6 +1696,13 @@ namespace ojph {
           val = val >= lower_val ? val : lower_val;
           *dp = (si32)val;
           // this only works for little endian architecture
+          if( true == is_machine_little_endian)
+            dp = (si32*)((ui8*)dp + 3);
+          else
+            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
+              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
+              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
+            exit(-1);
           dp = (si32*)((ui8*)dp + 3);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
@@ -1744,6 +1764,13 @@ namespace ojph {
           val = val >= lower_val ? val : lower_val;
           *dp = (ui32)val;
           // this only works for little endian architecture
+          if( true == is_machine_little_endian)
+            dp = (ui32*)((ui8*)dp + 3);
+          else
+            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
+              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
+              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
+            exit(-1);
           dp = (ui32*)((ui8*)dp + 3);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
