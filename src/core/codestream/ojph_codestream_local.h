@@ -55,9 +55,16 @@ namespace ojph {
 
     /////////////////////////////////////////////////////////////////////////
     static inline
-    ui16 swap_byte(ui16 t)
+    ui16 swap_byte_if_machine_is_little_endian(ui16 t)
     {
-      return (ui16)((t << 8) | (t >> 8));
+      if (is_machine_little_endian)
+      {
+        return (ui16)((t << 8) | (t >> 8));
+      }
+      else
+      {
+        return t;
+      }
     }
 
     //////////////////////////////////////////////////////////////////////////

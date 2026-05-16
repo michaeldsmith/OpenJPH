@@ -575,7 +575,7 @@ namespace ojph {
           OJPH_ERROR(0x00030081, "Error writing to file");
 
         //write start of data
-        ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : (ui16)JP2K_MARKER::SOD;
+        ui16 t = swap_byte_if_machine_is_little_endian(JP2K_MARKER::SOD);
         if (!file->write(&t, 2))
           OJPH_ERROR(0x00030082, "Error writing to file");
       }
@@ -603,7 +603,7 @@ namespace ojph {
               OJPH_ERROR(0x00030083, "Error writing to file");
 
             //write start of data
-            ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : (ui16)JP2K_MARKER::SOD;
+            ui16 t = swap_byte_if_machine_is_little_endian(JP2K_MARKER::SOD);
             if (!file->write(&t, 2))
               OJPH_ERROR(0x00030084, "Error writing to file");
 
@@ -623,7 +623,7 @@ namespace ojph {
                                (ui8)(c + r * num_comps), (ui8)num_tileparts))
                   OJPH_ERROR(0x00030085, "Error writing to file");
                 //write start of data
-                ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : (ui16)JP2K_MARKER::SOD;
+                ui16 t = swap_byte_if_machine_is_little_endian(JP2K_MARKER::SOD);
                 if (!file->write(&t, 2))
                   OJPH_ERROR(0x00030086, "Error writing to file");
                 comps[c].write_precincts(r, file);
@@ -644,7 +644,7 @@ namespace ojph {
               OJPH_ERROR(0x00030087, "Error writing to file");
 
             //write start of data
-            ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : (ui16)JP2K_MARKER::SOD;
+            ui16 t = swap_byte_if_machine_is_little_endian(JP2K_MARKER::SOD);
             if (!file->write(&t, 2))
               OJPH_ERROR(0x00030088, "Error writing to file");
           }
@@ -719,7 +719,7 @@ namespace ojph {
               OJPH_ERROR(0x0003008A, "Error writing to file");
 
             //write start of data
-            ui16 t = is_machine_little_endian ? swap_byte(JP2K_MARKER::SOD) : (ui16)JP2K_MARKER::SOD;
+            ui16 t = swap_byte_if_machine_is_little_endian(JP2K_MARKER::SOD);
             if (!file->write(&t, 2))
               OJPH_ERROR(0x0003008B, "Error writing to file");
           }
