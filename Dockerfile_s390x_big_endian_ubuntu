@@ -48,3 +48,20 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 # docker in a docker for multi-platform builds
 # see https://blog.devops.dev/how-to-install-qemu-for-multi-platform-builds-in-a-docker-in-docker-dind-container-83eae2590ac8
 # docker run --privileged --rm tonistiigi/binfmt --install all
+
+
+# to run using windows git bash terminal
+# 1 - config QEMU: docker run --privileged --rm tonistiigi/binfmt --install all
+# 2 - build s390x container using QEMU: docker build -f Dockerfile_390x_big_endian -t s390x-ubuntu .
+# 3 - run s390x container using QEMU: docker run -it --rm -v /c/data/temp:/tmp s390x-ubuntu /bin/bash
+
+# in WSL terminal
+# sudo docker run --rm --platform linux/s390x alpine uname -m
+# Unable to find image 'alpine:latest' locally
+# latest: Pulling from library/alpine
+# 13188190f2c5: Pull complete 
+# 3ba62a63c44c: Download complete 
+# 92e1b3a48a10: Download complete 
+# Digest: sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+# Status: Image is up to date for alpine:latest
+# s390x
