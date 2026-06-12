@@ -51,6 +51,15 @@ namespace ojph {
   /////////////////////////////////////////////////////////////////////////////
 
   /////////////////////////////////////////////////////////////////////////////
+  // When true, pfm_out writes little-endian files (declared with a negative
+  // scale in the header) on any machine, swapping bytes on big-endian
+  // machines; this makes the output byte-identical across architectures.
+  // When false, pfm_out writes in the machine's native byte order and sets
+  // the scale sign accordingly; the output is still a valid PFM file, but
+  // its byte order then depends on the writing machine.
+  const bool is_force_pfm_write_as_little_endian_on_disk = true;
+
+  /////////////////////////////////////////////////////////////////////////////
   static
   ui16 be2le(const ui16 v)
   {
@@ -754,10 +763,14 @@ namespace ojph {
     this->height = height;
     this->num_components = num_components;
     // the sign of scale declares the file's byte order: negative means
-    // little endian, positive means big endian; data is written in the
-    // machine's native byte order, so the sign must match the machine
+    // little endian, positive means big endian; the sign must match the
+    // byte order in which the samples are written, which is little endian
+    // when is_force_pfm_write_as_little_endian_on_disk is set, and the
+    // machine's native byte order otherwise
+    bool is_write_little_endian_on_disk =
+      is_force_pfm_write_as_little_endian_on_disk || is_machine_little_endian;
     scale = scale < 0.0f ? -scale : scale;
-    this->scale = is_machine_little_endian ? -scale : scale;
+    this->scale = is_write_little_endian_on_disk ? -scale : scale;
     for (ui32 c = 0; c < num_components; ++c)
       this->bit_depth[c] = bit_depth[c];
   }
@@ -776,16 +789,20 @@ namespace ojph {
     dp.f = buffer + comp_num;
     sp.f = line->f32;
 
+    // swap bytes when the samples are forced to little endian on disk
+    // but the machine is big endian
+    bool needs_swap = is_force_pfm_write_as_little_endian_on_disk
+      && !is_machine_little_endian;
     if (shift)
       for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
       {
         ui32 u = *sp.u;
         u <<= shift;
-        *dp.u = u;
+        *dp.u = needs_swap ? be2le(u) : u;
       }
     else
-      for (ui32 i = width; i > 0; --i, dp.f += num_components)
-        *dp.f = *sp.f++;
+      for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
+        *dp.u = needs_swap ? be2le(*sp.u) : *sp.u;
 
     if (comp_num == num_components - 1)
     {
