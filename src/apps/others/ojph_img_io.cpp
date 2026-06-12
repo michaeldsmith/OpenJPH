@@ -1522,54 +1522,38 @@ namespace ojph {
       OJPH_ERROR(0x03000132, "not enough data in file %s", fname);
     }
 
+    // raw file samples wider than one byte are little-endian on disk;
+    // see docs/usage_examples.md
     if (bytes_per_sample > 3)
     {
       si32* dp = line->i32;
       if (is_signed) {
         const si32* sp = (si32*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = *sp;
+          *dp++ = is_machine_little_endian ? *sp : (si32)be2le((ui32)*sp);
       }
       else {
-        si32* dp = line->i32;
         const ui32* sp = (ui32*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = (si32)*sp;
+          *dp++ = is_machine_little_endian ? (si32)*sp : (si32)be2le(*sp);
       }
     }
     else if (bytes_per_sample > 2)
     {
       si32* dp = line->i32;
+      const ui8* sp = (const ui8*)buffer;
       if (is_signed) {
-        const si32* sp = (si32*)buffer;
-        for (ui32 i = width; i > 0; --i) {
-          si32 val = *sp & 0xFFFFFF;
-          val |= (val & 0x800000) ? 0xFF000000 : 0;
+        for (ui32 i = width; i > 0; --i, sp += 3) {
+          si32 val =
+            (si32)((ui32)sp[0] | ((ui32)sp[1] << 8) | ((ui32)sp[2] << 16));
+          val |= (val & 0x800000) ? (si32)0xFF000000 : 0;
           *dp++ = val;
-          // this only works for little endian architecture
-          if( true == is_machine_little_endian)
-            sp = (si32*)((si8*)sp + 3);
-          else
-            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
-              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
-              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
-            exit(-1);
         }
       }
       else {
-        const ui32* sp = (ui32*)buffer;
-        for (ui32 i = width; i > 0; --i) {
-          *dp++ = (si32)(*sp & 0xFFFFFFu);
-          // this only works for little endian architecture
-          if( true == is_machine_little_endian)
-            sp = (ui32*)((ui8*)sp + 3);
-          else
-            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
-              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
-              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
-            exit(-1);
-          sp = (ui32*)((ui8*)sp + 3);
-        }
+        for (ui32 i = width; i > 0; --i, sp += 3)
+          *dp++ =
+            (si32)((ui32)sp[0] | ((ui32)sp[1] << 8) | ((ui32)sp[2] << 16));
       }
     }
     else if (bytes_per_sample > 1)
@@ -1578,12 +1562,12 @@ namespace ojph {
       if (is_signed) {
         const si16* sp = (si16*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = *sp;
+          *dp++ = is_machine_little_endian ? *sp : (si16)be2le((ui16)*sp);
       }
       else {
         const ui16* sp = (ui16*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = (si32)*sp;
+          *dp++ = is_machine_little_endian ? (si32)*sp : (si32)be2le(*sp);
       }
     }
     else
@@ -1675,6 +1659,8 @@ namespace ojph {
 
     if (is_signed) 
     {
+      // raw file samples wider than one byte are little-endian on disk;
+      // see docs/usage_examples.md
       if (bytes_per_sample > 3)
       {
         const si32* sp = line->i32;
@@ -1684,7 +1670,8 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = (si32)val;
+          *dp++ = is_machine_little_endian ?
+            (si32)val : (si32)be2le((ui32)(si32)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000151, "unable to write to file %s", fname);
@@ -1692,22 +1679,15 @@ namespace ojph {
       else if (bytes_per_sample > 2)
       {
         const si32* sp = line->i32;
-        si32* dp = (si32*)buffer;
+        ui8* dp = buffer;
         for (ui32 i = width; i > 0; --i)
         {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp = (si32)val;
-          // this only works for little endian architecture
-          if( true == is_machine_little_endian)
-            dp = (si32*)((ui8*)dp + 3);
-          else
-            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
-              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
-              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
-            exit(-1);
-          dp = (si32*)((ui8*)dp + 3);
+          *dp++ = (ui8)val;
+          *dp++ = (ui8)(val >> 8);
+          *dp++ = (ui8)(val >> 16);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000152, "unable to write to file %s", fname);
@@ -1721,7 +1701,8 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = (si16)val;
+          *dp++ = is_machine_little_endian ?
+            (si16)val : (si16)be2le((ui16)(si16)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000153, "unable to write to file %s", fname);
@@ -1743,6 +1724,8 @@ namespace ojph {
     }
     else 
     {
+      // raw file samples wider than one byte are little-endian on disk;
+      // see docs/usage_examples.md
       if (bytes_per_sample > 3)
       {
         const ui32* sp = (ui32*)line->i32;
@@ -1752,7 +1735,8 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = (ui32)val;
+          *dp++ = is_machine_little_endian ?
+            (ui32)val : be2le((ui32)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000155, "unable to write to file %s", fname);
@@ -1760,22 +1744,15 @@ namespace ojph {
       else if (bytes_per_sample > 2)
       {
         const ui32* sp = (ui32*)line->i32;
-        ui32* dp = (ui32*)buffer;
+        ui8* dp = buffer;
         for (ui32 i = width; i > 0; --i)
         {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp = (ui32)val;
-          // this only works for little endian architecture
-          if( true == is_machine_little_endian)
-            dp = (ui32*)((ui8*)dp + 3);
-          else
-            fprintf(stderr, "ERROR in function %s on line %d of file %s:\n"
-              "big endian architecture is not currently supported for (bytes_per_sample = %d) raw files\n",
-              __FUNCTION__, __LINE__, __FILE__, bytes_per_sample),
-            exit(-1);
-          dp = (ui32*)((ui8*)dp + 3);
+          *dp++ = (ui8)val;
+          *dp++ = (ui8)(val >> 8);
+          *dp++ = (ui8)(val >> 16);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000156, "unable to write to file %s", fname);
@@ -1789,7 +1766,8 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = (ui16)val;
+          *dp++ = is_machine_little_endian ?
+            (ui16)val : be2le((ui16)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000157, "unable to write to file %s", fname);
