@@ -79,7 +79,7 @@ namespace ojph {
     {
       if (bbp->bytes_left > 0)
       {
-        ui32 t = 0;
+        ui8 t = 0;
         if (bbp->file->read(&t, 1) != 1)
           throw "error reading from file";
         bbp->tmp = t;

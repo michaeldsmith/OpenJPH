@@ -679,13 +679,13 @@ namespace ojph {
       float* f;
     } sp, dp;
 
-    if (little_endian)
-    {
+    if (little_endian == is_machine_little_endian)
+    { // file byte order matches machine byte order
       ui32 shift = 32 - bit_depth[comp_num];
       sp.f = temp_buf + comp_num;
       dp.f = line->f32;
       if (shift)
-        for (ui32 i = width; i > 0; --i, sp.f += num_comps) 
+        for (ui32 i = width; i > 0; --i, sp.f += num_comps)
         {
           si32 s = *sp.s;
           s >>= shift;
@@ -753,7 +753,11 @@ namespace ojph {
     this->width = width;
     this->height = height;
     this->num_components = num_components;
-    this->scale = scale < 0.0f ? scale : -scale;
+    // the sign of scale declares the file's byte order: negative means
+    // little endian, positive means big endian; data is written in the
+    // machine's native byte order, so the sign must match the machine
+    scale = scale < 0.0f ? -scale : scale;
+    this->scale = is_machine_little_endian ? -scale : scale;
     for (ui32 c = 0; c < num_components; ++c)
       this->bit_depth[c] = bit_depth[c];
   }
