@@ -357,6 +357,23 @@ namespace ojph {
     return reinterpret_cast<T *>(p);
   }
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Determine the byte order of the target at compile time when possible,
+  // so that the compiler can remove the branches for the other byte order.
+  // __BYTE_ORDER__ is a predefined macro that describes the target
+  // architecture, not the machine running the compiler, so it is also
+  // correct when cross-compiling.  All MSVC targets (x86, x64, ARM64
+  // Windows) are little endian.  From C++20 onwards,
+  // std::endian::native == std::endian::little is the standard way of
+  // obtaining the same compile-time answer.
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  constexpr bool is_machine_little_endian = false;
+#elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  constexpr bool is_machine_little_endian = true;
+#elif defined(OJPH_COMPILER_MSVC)
+  constexpr bool is_machine_little_endian = true;
+#else
+  // fallback in case macro __BYTE_ORDER__ is not defined
   // If the first byte in memory is 0x01, the machine is Little Endian.
   // If the first byte in memory is 0x00, the machine is Big Endian.
   static bool check_if_machine_is_little_endian()
@@ -366,6 +383,50 @@ namespace ojph {
     return is_machine_little_endian;
   }
   const bool is_machine_little_endian = check_if_machine_is_little_endian();
+#endif
+
+  ////////////////////////////////////////////////////////////////////////////
+  // swaps the bytes of the value on little-endian machines, and returns the
+  // value unchanged on big-endian machines; this is used for reading and
+  // writing the big-endian values of a JPEG 2000 codestream
+  static inline ui16 swap_byte_if_machine_is_little_endian(ui16 t)
+  {
+    if (is_machine_little_endian)
+      return (ui16)((t << 8) | (t >> 8));
+    else
+      return t;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // 1 2 3 4 --> 4 3 2 1 on little-endian machines
+  static inline ui32 swap_byte_if_machine_is_little_endian(ui32 t)
+  {
+    if (is_machine_little_endian)
+    {
+      ui32 u = swap_byte_if_machine_is_little_endian((ui16)(t & 0xFFFFu));
+      u <<= 16;
+      u |= swap_byte_if_machine_is_little_endian((ui16)(t >> 16));
+      return u;
+    }
+    else
+      return t;
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // 1 2 3 4 5 6 7 8 --> 8 7 6 5 4 3 2 1 on little-endian machines
+  static inline ui64 swap_byte_if_machine_is_little_endian(ui64 t)
+  {
+    if (is_machine_little_endian)
+    {
+      ui64 u =
+        swap_byte_if_machine_is_little_endian((ui32)(t & 0xFFFFFFFFu));
+      u <<= 32;
+      u |= swap_byte_if_machine_is_little_endian((ui32)(t >> 32));
+      return u;
+    }
+    else
+      return t;
+  }
 
   ////////////////////////////////////////////////////////////////////////////
   // loads 4 bytes from p as a little-endian 32-bit integer; that is, the

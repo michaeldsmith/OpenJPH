@@ -40,6 +40,7 @@
 #define OJPH_BITBUFFER_READ_H
 
 #include "ojph_defs.h"
+#include "ojph_arch.h"
 #include "ojph_file.h"
 
 namespace ojph {

@@ -40,6 +40,7 @@
 #define OJPH_CODESTREAM_LOCAL_H
 
 #include "ojph_defs.h"
+#include "ojph_arch.h"
 #include "ojph_params_local.h"
 
 namespace ojph {
@@ -52,20 +53,6 @@ namespace ojph {
   class codestream;
 
   namespace local {
-
-    /////////////////////////////////////////////////////////////////////////
-    static inline
-    ui16 swap_byte_if_machine_is_little_endian(ui16 t)
-    {
-      if (is_machine_little_endian)
-      {
-        return (ui16)((t << 8) | (t >> 8));
-      }
-      else
-      {
-        return t;
-      }
-    }
 
     //////////////////////////////////////////////////////////////////////////
     //defined elsewhere

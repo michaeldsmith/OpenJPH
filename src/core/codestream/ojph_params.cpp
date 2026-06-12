@@ -38,6 +38,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
+#include "ojph_arch.h"
 #include "ojph_base.h"
 #include "ojph_file.h"
 #include "ojph_params.h"
@@ -484,57 +485,6 @@ namespace ojph {
   //////////////////////////////////////////////////////////////////////////
 
   namespace local {
-
-    //////////////////////////////////////////////////////////////////////////
-    // 1 2 --> 2 1 
-    static inline
-    ui16 swap_byte_if_machine_is_little_endian(ui16 t)
-    {
-      if( is_machine_little_endian )
-      {
-        return (ui16)((t << 8) | (t >> 8));
-      }
-      else
-      {
-        return t;
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    // 1 2 3 4 --> 4 3 2 1
-    static inline
-    ui32 swap_byte_if_machine_is_little_endian(ui32 t)
-    {
-      if( is_machine_little_endian )
-      {
-        ui32 u = swap_byte_if_machine_is_little_endian((ui16)(t & 0xFFFFu)); // 3 4 --> 4 3 
-        u <<= 16; // 4 3 0 0
-        u |= swap_byte_if_machine_is_little_endian((ui16)(t >> 16)); // 4 3 0 0 || 2 1 --> 4 3 2 1
-        return u;
-      }
-      else
-      {
-        return t;
-      }
-    }
-
-    //////////////////////////////////////////////////////////////////////////
-    // 1 2 3 4 5 6 7 8 --> 8 7 6 5 4 3 2 1
-    static inline
-    ui64 swap_byte_if_machine_is_little_endian(ui64 t)
-    {
-      if( is_machine_little_endian )
-      {
-        ui64 u = swap_byte_if_machine_is_little_endian((ui32)(t & 0xFFFFFFFFu)); // 5 6 7 8 --> 8 7 6 5
-        u <<= 32; // 8 7 6 5 0 0 0 0
-        u |= swap_byte_if_machine_is_little_endian((ui32)(t >> 32));  // 8 7 6 5 0 0 0 0 || 4 3 2 1 --> 8 7 6 5 4 3 2 1
-        return u;
-      }
-      else
-      {
-        return t;
-      }
-    }
 
     //////////////////////////////////////////////////////////////////////////
     //
