@@ -46,6 +46,22 @@
 using namespace ojph;
 using namespace std;
 
+//////////////////////////////////////////////////////////////////////////////
+// .rawl files are little-endian on disk; on big-endian machines the byte
+// order of multi-byte samples must be reversed after reading
+static inline ui16 swap_byte(ui16 v)
+{
+  return (ui16)((v << 8) | (v >> 8));
+}
+
+static inline ui32 swap_byte(ui32 v)
+{
+  ui32 u = swap_byte((ui16)(v & 0xFFFFu));
+  u <<= 16;
+  u |= swap_byte((ui16)(v >> 16));
+  return u;
+}
+
 enum : ui32 {
   UNDEFINED = 0,
   FORMAT444 = 1,
@@ -405,8 +421,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = *sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          si16 v = *sp++;
+          *dp++ = is_machine_little_endian ? v : (si16)swap_byte((ui16)v);
+        }
       }
       fclose(f);
       delete[] buffer;
@@ -428,8 +446,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = *sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          si32 v = *sp++;
+          *dp++ = is_machine_little_endian ? v : (si32)swap_byte((ui32)v);
+        }
       }
       fclose(f);
       delete[] buffer;
@@ -477,8 +497,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = *sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          ui16 v = *sp++;
+          *dp++ = (si32)(is_machine_little_endian ? v : swap_byte(v));
+        }
       }
       fclose(f);
       delete[] buffer;
@@ -500,8 +522,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = (si32)*sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          ui32 v = *sp++;
+          *dp++ = (si32)(is_machine_little_endian ? v : swap_byte(v));
+        }
       }
       fclose(f);
       delete[] buffer;

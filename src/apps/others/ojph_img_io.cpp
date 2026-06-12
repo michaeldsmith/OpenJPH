@@ -1342,10 +1342,11 @@ namespace ojph {
     }
     else
     {
+      // yuv samples wider than one byte are little-endian on disk
       const ui16* sp = (ui16*)temp_buf;
       si32* dp = line->i32;
       for (ui32 i = width[comp_num]; i > 0; --i, ++sp)
-        *dp++ = (si32)*sp;
+        *dp++ = is_machine_little_endian ? (si32)*sp : (si32)be2le(*sp);
     }
 
     return width[comp_num];
@@ -1457,6 +1458,7 @@ namespace ojph {
     ui32 w = comp_width[comp_num];
     if (bit_depth > 8)
     {
+      // yuv samples wider than one byte are little-endian on disk
       const si32 *sp = line->i32;
       ui16 *dp = (ui16 *)buffer;
       for (ui32 i = w; i > 0; --i)
@@ -1464,7 +1466,7 @@ namespace ojph {
         int val = *sp++;
         val = val >= 0 ? val : 0;
         val = val <= max_val ? val : max_val;
-        *dp++ = (ui16)val;
+        *dp++ = is_machine_little_endian ? (ui16)val : be2le((ui16)val);
       }
       if (fwrite(buffer, 2, w, fh) != w)
         OJPH_ERROR(0x03000121, "unable to write to file %s", fname);
