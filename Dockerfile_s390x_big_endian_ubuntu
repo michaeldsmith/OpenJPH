@@ -35,7 +35,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # 3a - make sure Docker Desktop on windows host if running docker from WSL Ubuntu
 # 3b - Build the docker image
-# sudo docker build -f Dockerfile_390x_big_endian -t s390x-ubuntu .
+# sudo docker build -f Dockerfile_s390x_big_endian_ubuntu -t s390x-ubuntu .
 
 # 4a - run the docker (in isolated container)
 # sudo docker run -it --rm s390x-ubuntu /bin/bash
@@ -52,7 +52,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # to run using windows git bash terminal
 # 1 - config QEMU: docker run --privileged --rm tonistiigi/binfmt --install all
-# 2 - build s390x container using QEMU: docker build -f Dockerfile_390x_big_endian -t s390x-ubuntu .
+# 2 - build s390x container using QEMU: docker build -f Dockerfile_s390x_big_endian_ubuntu -t s390x-ubuntu .
 # 3 - run s390x container using QEMU: docker run -it --rm -v /c/data/temp:/tmp s390x-ubuntu /bin/bash
 
 # in WSL terminal
