@@ -405,8 +405,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = *sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          si16 v = *sp++;
+          *dp++ = (si16)swap_bytes_if_machine_is_big_endian((ui16)v);
+        }
       }
       fclose(f);
       delete[] buffer;
@@ -428,8 +430,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = *sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          si32 v = *sp++;
+          *dp++ = (si32)swap_bytes_if_machine_is_big_endian((ui32)v);
+        }
       }
       fclose(f);
       delete[] buffer;
@@ -477,8 +481,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = *sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          ui16 v = *sp++;
+          *dp++ = (si32)swap_bytes_if_machine_is_big_endian(v);
+        }
       }
       fclose(f);
       delete[] buffer;
@@ -500,8 +506,10 @@ void load_rawl(const char *filename, img_info& img)
           printf("Error reading from file %s\n", name_buf);
           exit(-1);
         }
-        for (ui32 j = s.w * s.h; j > 0; --j)
-          *dp++ = (si32)*sp++;
+        for (ui32 j = s.w * s.h; j > 0; --j) {
+          ui32 v = *sp++;
+          *dp++ = (si32)swap_bytes_if_machine_is_big_endian(v);
+        }
       }
       fclose(f);
       delete[] buffer;

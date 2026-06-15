@@ -383,6 +383,15 @@ namespace ojph {
   const bool is_machine_little_endian = check_if_machine_is_little_endian();
 #endif
   ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 --> 2 1 on big-endian machines
+  static inline ui16 swap_bytes_if_machine_is_big_endian(ui16 t)
+  {
+    if (is_machine_little_endian)
+      return t;
+    else
+      return (ui16)((t << 8) | (t >> 8));
+  }
+  ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 --> 2 1 on little-endian machines
   static inline ui16 swap_bytes_if_machine_is_little_endian(ui16 t)
   {
@@ -390,6 +399,20 @@ namespace ojph {
       return (ui16)((t << 8) | (t >> 8));
     else
       return t;
+  }
+    ////////////////////////////////////////////////////////////////////////////
+  // swap bytes 1 2 3 4 --> 4 3 2 1 on big-endian machines
+  static inline ui32 swap_bytes_if_machine_is_big_endian(ui32 t)
+  {
+    if (is_machine_little_endian)
+      return t;
+    else
+    {
+      ui32 u = swap_bytes_if_machine_is_big_endian((ui16)(t & 0xFFFFu));
+      u <<= 16;
+      u |= swap_bytes_if_machine_is_big_endian((ui16)(t >> 16));
+      return u;
+    }
   }
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 3 4 --> 4 3 2 1 on little-endian machines
