@@ -420,6 +420,31 @@ namespace ojph {
     else
       return t;
   }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // loads 4 bytes from p as a little-endian 32-bit integer; that is, the
+  // byte at the lowest address goes into the least-significant byte of the
+  // result, irrespective of the machine's endianness
+  static inline ui32 load_le_ui32(const ui8 *p)
+  {
+    if (is_machine_little_endian)
+      return *(const ui32 *)p;
+    else
+      return (ui32)p[0] | ((ui32)p[1] << 8)
+        | ((ui32)p[2] << 16) | ((ui32)p[3] << 24);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // loads two consecutive ui16 values from p, placing the one at the lower
+  // address in the least-significant 16 bits of the result, irrespective
+  // of the machine's endianness
+  static inline ui32 load_le_ui16x2(const ui16 *p)
+  {
+    if (is_machine_little_endian)
+      return *(const ui32 *)p;
+    else
+      return (ui32)p[0] | ((ui32)p[1] << 16);
+  }
 }
 
 #endif // !OJPH_ARCH_H
