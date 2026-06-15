@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:26.04
 
 RUN apt-get update
 
