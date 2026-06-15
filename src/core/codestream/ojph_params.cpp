@@ -696,6 +696,8 @@ namespace ojph {
       Csiz = swap_bytes_if_machine_is_little_endian(Csiz);
       if (Csiz != num_comps)
         OJPH_ERROR(0x0005004E, "Csiz does not match the SIZ marker size");
+      if (Csiz == 0)
+        OJPH_ERROR(0x0005004F, "Wrong Csiz value of 0 in SIZ marker segment");
       set_num_components(Csiz);
       for (int c = 0; c < Csiz; ++c)
       {
