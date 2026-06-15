@@ -679,7 +679,7 @@ namespace ojph {
       float* f;
     } sp, dp;
 
-    if (little_endian)
+    if (little_endian == is_machine_little_endian)
     {
       ui32 shift = 32 - bit_depth[comp_num];
       sp.f = temp_buf + comp_num;
@@ -721,7 +721,11 @@ namespace ojph {
   //
   //
   ////////////////////////////////////////////////////////////////////////////
-
+  // When is_force_pfm_write_as_little_endian_on_disk is true, pfm_out writes 
+  // little-endian files on both big and little endian machines.
+  // When is_force_pfm_write_as_little_endian_on_diskis false, pfm_out writes 
+  // in the machine's native byte order and sets the scale sign accordingly.
+  const bool is_force_pfm_write_as_little_endian_on_disk = true;
   ////////////////////////////////////////////////////////////////////////////
   void pfm_out::open(char* filename)
   {
@@ -753,7 +757,10 @@ namespace ojph {
     this->width = width;
     this->height = height;
     this->num_components = num_components;
-    this->scale = scale < 0.0f ? scale : -scale;
+    bool is_write_little_endian_on_disk =
+      is_force_pfm_write_as_little_endian_on_disk || is_machine_little_endian;
+    scale = scale < 0.0f ? -scale : scale;
+    this->scale = is_write_little_endian_on_disk ? -scale : scale;
     for (ui32 c = 0; c < num_components; ++c)
       this->bit_depth[c] = bit_depth[c];
   }
@@ -772,16 +779,20 @@ namespace ojph {
     dp.f = buffer + comp_num;
     sp.f = line->f32;
 
+    // swap bytes when the samples are forced to little endian on disk
+    // but the machine is big endian
+    bool needs_swap = is_force_pfm_write_as_little_endian_on_disk
+      && !is_machine_little_endian;
     if (shift)
       for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
       {
         ui32 u = *sp.u;
         u <<= shift;
-        *dp.u = u;
+        *dp.u = needs_swap ? be2le(u) : u;
       }
     else
-      for (ui32 i = width; i > 0; --i, dp.f += num_components)
-        *dp.f = *sp.f++;
+      for (ui32 i = width; i > 0; --i, dp.f += num_components, ++sp.f)
+        *dp.u = needs_swap ? be2le(*sp.u) : *sp.u;
 
     if (comp_num == num_components - 1)
     {

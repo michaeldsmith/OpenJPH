@@ -20,7 +20,8 @@ Here are some usage examples:
 # Notes about byte order of files on disk:
 * Byte order on disk is independent of the machine's architecture; OpenJPH reads and writes the same bytes on little-endian and big-endian machines.  
 * JPEG 2000 codestreams use big-endian byte order for all markers and marker segments.
-* Samples wider than one byte are little-endian in `.raw`/`.rawl` and `.yuv` files, and big-endian in 16-bit `.pgm`/`.ppm` files (per the netpbm specification).   
+* Samples wider than one byte are little-endian in `.raw`/`.rawl` and `.yuv` files, and big-endian in 16-bit `.pgm`/`.ppm` files (per the netpbm specification). 
+* The `.pfm` file reader supports both little-endian and big-endian files, by default the `.pfm` writer writes little-endian files.  
 * DPX files declare their byte order through the magic number.
 * TIFF byte order is handled by libtiff.
 
