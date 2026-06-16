@@ -384,7 +384,7 @@ namespace ojph {
 #endif
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 --> 2 1 on big-endian machines
-  static inline ui16 swap_bytes_if_machine_is_big_endian(ui16 t)
+  static inline ui16 swap_bytes_if_be(ui16 t)
   {
     if (is_machine_little_endian)
       return t;
@@ -393,7 +393,7 @@ namespace ojph {
   }
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 --> 2 1 on little-endian machines
-  static inline ui16 swap_bytes_if_machine_is_little_endian(ui16 t)
+  static inline ui16 swap_bytes_if_le(ui16 t)
   {
     if (is_machine_little_endian)
       return (ui16)((t << 8) | (t >> 8));
@@ -402,27 +402,27 @@ namespace ojph {
   }
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 3 4 --> 4 3 2 1 on big-endian machines
-  static inline ui32 swap_bytes_if_machine_is_big_endian(ui32 t)
+  static inline ui32 swap_bytes_if_be(ui32 t)
   {
     if (is_machine_little_endian)
       return t;
     else
     {
-      ui32 u = swap_bytes_if_machine_is_big_endian((ui16)(t & 0xFFFFu));
+      ui32 u = swap_bytes_if_be((ui16)(t & 0xFFFFu));
       u <<= 16;
-      u |= swap_bytes_if_machine_is_big_endian((ui16)(t >> 16));
+      u |= swap_bytes_if_be((ui16)(t >> 16));
       return u;
     }
   }
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 3 4 --> 4 3 2 1 on little-endian machines
-  static inline ui32 swap_bytes_if_machine_is_little_endian(ui32 t)
+  static inline ui32 swap_bytes_if_le(ui32 t)
   {
     if (is_machine_little_endian)
     {
-      ui32 u = swap_bytes_if_machine_is_little_endian((ui16)(t & 0xFFFFu));
+      ui32 u = swap_bytes_if_le((ui16)(t & 0xFFFFu));
       u <<= 16;
-      u |= swap_bytes_if_machine_is_little_endian((ui16)(t >> 16));
+      u |= swap_bytes_if_le((ui16)(t >> 16));
       return u;
     }
     else
@@ -430,14 +430,14 @@ namespace ojph {
   }
   ////////////////////////////////////////////////////////////////////////////
   // swap bytes 1 2 3 4 5 6 7 8 --> 8 7 6 5 4 3 2 1 on little-endian machines
-  static inline ui64 swap_bytes_if_machine_is_little_endian(ui64 t)
+  static inline ui64 swap_bytes_if_le(ui64 t)
   {
     if (is_machine_little_endian)
     {
       ui64 u =
-        swap_bytes_if_machine_is_little_endian((ui32)(t & 0xFFFFFFFFu));
+        swap_bytes_if_le((ui32)(t & 0xFFFFFFFFu));
       u <<= 32;
-      u |= swap_bytes_if_machine_is_little_endian((ui32)(t >> 32));
+      u |= swap_bytes_if_le((ui32)(t >> 32));
       return u;
     }
     else

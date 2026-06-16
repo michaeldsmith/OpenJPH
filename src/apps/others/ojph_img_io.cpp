@@ -201,7 +201,7 @@ namespace ojph {
       int val = *sp++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = swap_bytes_if_machine_is_little_endian((ui16) val);
+      *p++ = swap_bytes_if_le((ui16) val);
     }
   }
 
@@ -220,15 +220,15 @@ namespace ojph {
       val = *sp0++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = swap_bytes_if_machine_is_little_endian((ui16) val);
+      *p++ = swap_bytes_if_le((ui16) val);
       val = *sp1++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = swap_bytes_if_machine_is_little_endian((ui16) val);
+      *p++ = swap_bytes_if_le((ui16) val);
       val = *sp2++;
       val = val >= 0 ? val : 0;
       val = val <= max_val ? val : max_val;
-      *p++ = swap_bytes_if_machine_is_little_endian((ui16) val);
+      *p++ = swap_bytes_if_le((ui16) val);
     }
   }
 
@@ -368,7 +368,7 @@ namespace ojph {
       const ui16* sp = (ui16*)temp_buf + comp_num;
       si32* dp = line->i32;
       for (ui32 i = width; i > 0; --i, sp+=num_comps)
-        *dp++ = (si32) swap_bytes_if_machine_is_little_endian((ui16) *sp);
+        *dp++ = (si32) swap_bytes_if_le((ui16) *sp);
     }
 
     return width;
@@ -1353,7 +1353,7 @@ namespace ojph {
       const ui16* sp = (ui16*)temp_buf;
       si32* dp = line->i32;
       for (ui32 i = width[comp_num]; i > 0; --i, ++sp)
-        *dp++ = (si32)swap_bytes_if_machine_is_big_endian(*sp);
+        *dp++ = (si32)swap_bytes_if_be(*sp);
     }
 
     return width[comp_num];
@@ -1472,7 +1472,7 @@ namespace ojph {
         int val = *sp++;
         val = val >= 0 ? val : 0;
         val = val <= max_val ? val : max_val;
-        *dp++ = swap_bytes_if_machine_is_big_endian((ui16)val);
+        *dp++ = swap_bytes_if_be((ui16)val);
       }
       if (fwrite(buffer, 2, w, fh) != w)
         OJPH_ERROR(0x03000121, "unable to write to file %s", fname);
@@ -1536,12 +1536,12 @@ namespace ojph {
       if (is_signed) {
         const si32* sp = (si32*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = swap_bytes_if_machine_is_big_endian((ui32)*sp);
+          *dp++ = swap_bytes_if_be((ui32)*sp);
       }
       else {
         const ui32* sp = (ui32*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = swap_bytes_if_machine_is_big_endian(*sp);
+          *dp++ = swap_bytes_if_be(*sp);
       }
     }
     else if (bytes_per_sample > 2)
@@ -1568,12 +1568,12 @@ namespace ojph {
       if (is_signed) {
         const si16* sp = (si16*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = swap_bytes_if_machine_is_big_endian((ui16)*sp);
+          *dp++ = swap_bytes_if_be((ui16)*sp);
       }
       else {
         const ui16* sp = (ui16*)buffer;
         for (ui32 i = width; i > 0; --i, ++sp)
-          *dp++ = swap_bytes_if_machine_is_big_endian(*sp);
+          *dp++ = swap_bytes_if_be(*sp);
       }
     }
     else
@@ -1674,7 +1674,7 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = (si32)swap_bytes_if_machine_is_big_endian((ui32)(si32)val);
+          *dp++ = (si32)swap_bytes_if_be((ui32)(si32)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000151, "unable to write to file %s", fname);
@@ -1704,7 +1704,7 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = (si16)swap_bytes_if_machine_is_big_endian((ui16)(si16)val);
+          *dp++ = (si16)swap_bytes_if_be((ui16)(si16)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000153, "unable to write to file %s", fname);
@@ -1735,7 +1735,7 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = swap_bytes_if_machine_is_big_endian((ui32)val);
+          *dp++ = swap_bytes_if_be((ui32)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000155, "unable to write to file %s", fname);
@@ -1766,7 +1766,7 @@ namespace ojph {
           si64 val = *sp++;
           val = val < upper_val ? val : upper_val;
           val = val >= lower_val ? val : lower_val;
-          *dp++ = swap_bytes_if_machine_is_big_endian((ui16)val);
+          *dp++ = swap_bytes_if_be((ui16)val);
         }
         if (fwrite(buffer, bytes_per_sample, width, fh) != width)
           OJPH_ERROR(0x03000157, "unable to write to file %s", fname);
