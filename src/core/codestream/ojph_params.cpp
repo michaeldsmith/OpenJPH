@@ -670,19 +670,25 @@ namespace ojph {
         OJPH_ERROR(0x00050047, "error reading SIZ marker");
       if (file->read(&t_YOsiz, 4) != 4)
         OJPH_ERROR(0x00050048, "error reading SIZ marker");
-      set_image_offset(point(swap_bytes_if_machine_is_little_endian(t_XOsiz), swap_bytes_if_machine_is_little_endian(t_YOsiz)));
+      set_image_offset(point(
+        swap_bytes_if_machine_is_little_endian(t_XOsiz), 
+        swap_bytes_if_machine_is_little_endian(t_YOsiz)));
       ui32 t_XTsiz, t_YTsiz;
       if (file->read(&t_XTsiz, 4) != 4)
         OJPH_ERROR(0x00050049, "error reading SIZ marker");
       if (file->read(&t_YTsiz, 4) != 4)
         OJPH_ERROR(0x0005004A, "error reading SIZ marker");
-      set_tile_size(size(swap_bytes_if_machine_is_little_endian(t_XTsiz), swap_bytes_if_machine_is_little_endian(t_YTsiz)));
+      set_tile_size(size(
+        swap_bytes_if_machine_is_little_endian(t_XTsiz), 
+        swap_bytes_if_machine_is_little_endian(t_YTsiz)));
       ui32 t_XTOsiz, t_YTOsiz;
       if (file->read(&t_XTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004B, "error reading SIZ marker");
       if (file->read(&t_YTOsiz, 4) != 4)
         OJPH_ERROR(0x0005004C, "error reading SIZ marker");
-      set_tile_offset(point(swap_bytes_if_machine_is_little_endian(t_XTOsiz), swap_bytes_if_machine_is_little_endian(t_YTOsiz)));
+      set_tile_offset(point(
+        swap_bytes_if_machine_is_little_endian(t_XTOsiz), 
+        swap_bytes_if_machine_is_little_endian(t_YTOsiz)));
       if (file->read(&Csiz, 2) != 2)
         OJPH_ERROR(0x0005004D, "error reading SIZ marker");
       Csiz = swap_bytes_if_machine_is_little_endian(Csiz);

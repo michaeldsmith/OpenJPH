@@ -35,6 +35,7 @@
 // Date: 28 August 2019
 //***************************************************************************/
 
+#include "ojph_arch.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -723,7 +724,7 @@ namespace ojph {
   ////////////////////////////////////////////////////////////////////////////
   // When is_force_pfm_write_as_little_endian_on_disk is true, pfm_out writes 
   // little-endian files on both big and little endian machines.
-  // When is_force_pfm_write_as_little_endian_on_diskis false, pfm_out writes 
+  // When is_force_pfm_write_as_little_endian_on_disk is false, pfm_out writes 
   // in the machine's native byte order and sets the scale sign accordingly.
   const bool is_force_pfm_write_as_little_endian_on_disk = true;
   ////////////////////////////////////////////////////////////////////////////

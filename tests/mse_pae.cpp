@@ -35,6 +35,7 @@
 // Author: Aous Naman
 // Date: 18 March 2021
 //***************************************************************************/
+#include "ojph_arch.h"
 
 #include <cstdio>
 #include <cstdlib>
