@@ -2375,6 +2375,9 @@ namespace ojph {
       ui8 t, l_Ids = 0;
       if (file->read(&l_Ids, 1) != 1)
         OJPH_ERROR(0x000500D4, "error reading DFS-Ids parameter");
+      if (l_Ids == 0)
+        OJPH_ERROR(0x000500D8,
+          "The value of the Ids member in the DFS marker segment cannot be 0");
       constexpr int max_Ddfs = sizeof(Ddfs) * 4;
       if (l_Ids > max_Ddfs)
         OJPH_INFO(0x000500D5, "The DFS-Ids parameter is %d; while this is "
