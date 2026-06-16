@@ -35,11 +35,10 @@
 // Date: 28 August 2019
 //***************************************************************************/
 
-#include "ojph_arch.h"
-
 #include <cstdlib>
 #include <cstring>
 
+#include "ojph_arch.h"
 #include "ojph_file.h"
 #include "ojph_img_io.h"
 #include "ojph_mem.h"

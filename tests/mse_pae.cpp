@@ -35,12 +35,13 @@
 // Author: Aous Naman
 // Date: 18 March 2021
 //***************************************************************************/
-#include "ojph_arch.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>
 #include <cctype>
+
+#include "ojph_arch.h"
 #include "ojph_img_io.h"
 #include "ojph_mem.h"
 
