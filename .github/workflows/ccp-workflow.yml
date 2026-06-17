@@ -11,8 +11,9 @@ on:
         description: 'Select the job to run manually'
         type: 'choice'
         options:
-          - 'build_arm32'
-        default: 'build_arm32'
+          - 'test_arm32'
+          - 'test_s390x'
+        default: 'test_arm32'
       log_level:
         description: 'Log level'
         required: false
@@ -20,26 +21,26 @@ on:
 
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: MacOS,          runner: macos-latest },
-          { system: Ubuntu-22,      runner: ubuntu-22.04 },
-          { system: Ubuntu-latest,  runner: ubuntu-latest },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: make
-      working-directory: build
+  # build:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: MacOS,          runner: macos-latest },
+  #         { system: Ubuntu-22,      runner: ubuntu-22.04 },
+  #         { system: Ubuntu-latest,  runner: ubuntu-latest },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: make
+  #     working-directory: build
 
   build_mac:
     strategy:
@@ -50,7 +51,7 @@ jobs:
         ]
     name: ${{ matrix.system }} Build
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -60,71 +61,71 @@ jobs:
       run: make
       working-directory: build
 
-  build_windows:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: Windows,  runner: windows-latest },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
+  # build_windows:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: Windows,  runner: windows-latest },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -A x64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
 
-  build_msys2:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
-          { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-    - uses: actions/checkout@v5
-    - uses: msys2/setup-msys2@v2
-      with:
-        msystem: ${{ matrix.msystem }}
-        update: false
-        pacboy: cc:p cmake:p libtiff:p
-    - name: cmake
-      run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
+  # build_msys2:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
+  #         { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   defaults:
+  #     run:
+  #       shell: msys2 {0}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - uses: msys2/setup-msys2@v2
+  #     with:
+  #       msystem: ${{ matrix.msystem }}
+  #       update: false
+  #       pacboy: cc:p cmake:p libtiff:p
+  #   - name: cmake
+  #     run: cmake -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
 
-  build_windows_on_arm:
-    strategy:
-      fail-fast: false
-      matrix:
-        include: [
-          { system: WindowsOnARM,  runner: windows-11-arm },
-        ]
-    name: ${{ matrix.system }} Build
-    runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
-    steps:
-    - uses: actions/checkout@v5
-    - name: cmake
-      run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
-      working-directory: build
-    - name: build
-      run: cmake --build . --config Release
-      working-directory: build
+  # build_windows_on_arm:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include: [
+  #         { system: WindowsOnARM,  runner: windows-11-arm },
+  #       ]
+  #   name: ${{ matrix.system }} Build
+  #   runs-on: ${{ matrix.runner }}
+  #   if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #   - name: cmake
+  #     run: cmake -A ARM64 -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_STREAM_EXPAND=ON ..
+  #     working-directory: build
+  #   - name: build
+  #     run: cmake --build . --config Release
+  #     working-directory: build
 
   test:
     strategy:
@@ -133,15 +134,16 @@ jobs:
         include: [
           { system: MacOS-Intel,    runner: macos-15-intel },
           { system: MacOS-latest,   runner: macos-latest },
+          { system: Ubuntu-22,      runner: ubuntu-22.04 },
           { system: Ubuntu-latest,  runner: ubuntu-latest },
         ]
-    name: ${{ matrix.system }} Test
+    name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
-      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=yes ..
+      run: cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_TESTS=ON ..
       working-directory: build
     - name: build
       run: make
@@ -157,9 +159,9 @@ jobs:
         include: [
           { system: Windows,  runner: windows-latest },
         ]
-    name: ${{ matrix.system }} Test
+    name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -180,9 +182,9 @@ jobs:
           { system: Windows-MSYS2-UCRT64,  runner: windows-latest, msystem: UCRT64 },
           { system: Windows-MinGW32,  runner: windows-latest, msystem: MINGW32 },
         ]
-    name: ${{ matrix.system }} Test
+    name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
     defaults:
       run:
         shell: msys2 {0}
@@ -210,9 +212,9 @@ jobs:
         include: [
           { system: WindowsOnARM,  runner: windows-11-arm },
         ]
-    name: ${{ matrix.system }} Test
+    name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.job_to_run != 'build_arm32' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || !(github.event.inputs.job_to_run != 'test_arm32' || github.event.inputs.job_to_run != 'test_s390x' )}}
     steps:
     - uses: actions/checkout@v5
     - name: cmake
@@ -225,15 +227,35 @@ jobs:
       run: ctest --output-on-failure -C Release
       working-directory: build
 
-  build_arm32:
-    name: Linux-ARM32 Build
+  test_arm32:
+    name: Linux-ARM32 Build and Test
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'build_arm32' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_arm32' }}
     steps:
     - uses: actions/checkout@v5
     - uses: uraimo/run-on-arch-action@v2
       with:
         arch: armv7
+        distro: ubuntu22.04
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update -q -y
+          apt-get install -q -y cmake make g++ libtiff-dev python3
+        run: |
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DOJPH_BUILD_STREAM_EXPAND=ON -DOJPH_ENABLE_TIFF_SUPPORT=OFF -DOJPH_BUILD_TESTS=ON ..
+          make
+          ctest --output-on-failure
+
+  test_s390x:
+    name: Linux-s390x (big-endian) Build and Test
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.job_to_run == 'test_s390x' }}
+    steps:
+    - uses: actions/checkout@v5
+    - uses: uraimo/run-on-arch-action@v3
+      with:
+        arch: s390x
         distro: ubuntu22.04
         githubToken: ${{ github.token }}
         install: |
