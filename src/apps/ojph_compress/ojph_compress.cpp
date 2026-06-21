@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -107,7 +107,7 @@ struct size_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 /////////////////////////////////////////////////////////////////////////////
 struct point_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 {
-  point_list_interpreter(const ojph::ui32 max_num_elements, 
+  point_list_interpreter(const ojph::ui32 max_num_elements,
                          ojph::ui32& num_elements,
                          ojph::point* list)
   : max_num_eles(max_num_elements), pointlist(list), num_eles(num_elements)
@@ -228,7 +228,7 @@ struct point_interpreter : public ojph::cli_interpreter::arg_inter_base
 /////////////////////////////////////////////////////////////////////////////
 struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 {
-  ui32_list_interpreter(const ojph::ui32 max_num_elements, 
+  ui32_list_interpreter(const ojph::ui32 max_num_elements,
                         ojph::ui32& num_elements,
                         ojph::ui32* list)
   : max_num_eles(max_num_elements), ui32list(list), num_eles(num_elements)
@@ -272,7 +272,7 @@ struct ui32_list_interpreter : public ojph::cli_interpreter::arg_inter_base
 struct si32_to_bool_list_interpreter
 : public ojph::cli_interpreter::arg_inter_base
 {
-  si32_to_bool_list_interpreter(const ojph::ui32 max_num_elements, 
+  si32_to_bool_list_interpreter(const ojph::ui32 max_num_elements,
                                 ojph::ui32& num_elements,
                                 ojph::si32* list)
   : max_num_eles(max_num_elements), boollist(list), num_eles(num_elements) {}
@@ -324,7 +324,7 @@ struct si32_to_bool_list_interpreter
 struct tileparts_division_interpreter
 : public ojph::cli_interpreter::arg_inter_base
 {
-  tileparts_division_interpreter(bool& at_resolutions, 
+  tileparts_division_interpreter(bool& at_resolutions,
                                  bool& at_components)
   : at_resolutions(at_resolutions), at_components(at_components) {}
 
@@ -341,13 +341,13 @@ struct tileparts_division_interpreter
       at_resolutions = true;
       at_components = false;
     }
-    else if (len == 2 && 
+    else if (len == 2 &&
              (strncmp(str, "RC", 3) == 0 || strncmp(str, "CR", 3) == 0))
     {
       at_resolutions = true;
       at_components = true;
     }
-    else 
+    else
       throw "could not interpret -tileparts fields; allowed values are "
             "\"R\" \"C\" and \"RC\"";
   }
@@ -394,8 +394,12 @@ bool get_arguments(int argc, char *argv[], char *&input_filename,
   size_list_interpreter sizelist(max_num_precincts, num_precincts,
                                  precinct_size);
 
-  if (num_comps > 255)
-    throw "more than 255 components is not supported";
+  if (num_comps > 16384) {
+    printf("More than 16384 components is not supported in JPEG2000."
+      "You specified %d\n", num_comps);
+    return false;
+  }
+
   if (num_comps > max_num_comps)
   {
     max_num_comps = num_comps;
@@ -465,7 +469,7 @@ const char* get_file_extension(const char* filename)
 }
 
 /////////////////////////////////////////////////////////////////////////////
-static 
+static
 bool is_matching(const char *ref, const char *other)
 {
   size_t num_ele = strlen(ref);
@@ -684,7 +688,7 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
 
@@ -741,9 +745,9 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_marker);          
+        codestream.request_tlm_marker(tlm_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000011,
@@ -780,8 +784,8 @@ int main(int argc, char * argv[]) {
 
         bool all_the_same = true;
         if (num_comps == 3)
-          all_the_same = all_the_same 
-            && bit_depth[0] == bit_depth[1] 
+          all_the_same = all_the_same
+            && bit_depth[0] == bit_depth[1]
             && bit_depth[1] == bit_depth[2];
 
         for (ojph::ui32 c = 0; c < num_comps; ++c) {
@@ -825,28 +829,28 @@ int main(int argc, char * argv[]) {
           codestream.access_qcd().set_irrev_quant(quantization_step);
         }
 
-        // Note: Even if only ALL_COMPS is set to 
+        // Note: Even if only ALL_COMPS is set to
         // OJPH_NLT_BINARY_COMPLEMENT_NLT, the library can decide if
-        // one ALL_COMPS NLT marker segment is needed, or multiple 
+        // one ALL_COMPS NLT marker segment is needed, or multiple
         // per component NLT marker segments are needed (when the components
         // have different bit depths or signedness).
         // Of course for .pfm images all components should have the same
         // bit depth and signedness.
         ojph::param_nlt nlt = codestream.access_nlt();
         if (all_the_same)
-          nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS, 
+          nlt.set_nonlinear_transform(ojph::param_nlt::ALL_COMPS,
             ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
         else
           for (ojph::ui32 c = 0; c < num_comps; ++c)
-            nlt.set_nonlinear_transform(c, 
+            nlt.set_nonlinear_transform(c,
               ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_NLT);
 
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_marker);          
+        codestream.request_tlm_marker(tlm_marker);
 
         if (dims.w != 0 || dims.h != 0)
           OJPH_WARN(0x01000092,
@@ -856,7 +860,7 @@ int main(int argc, char * argv[]) {
             "-num_comps is not needed and was not used\n");
         if (is_signed[0] != -1)
           OJPH_WARN(0x01000094,
-            "-signed is not needed and was not used\n");            
+            "-signed is not needed and was not used\n");
         if (comp_downsampling[0].x != 0 || comp_downsampling[0].y != 0)
           OJPH_WARN(0x01000095,
             "-downsamp is not needed and was not used\n");
@@ -897,7 +901,7 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(false);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
 
@@ -982,9 +986,9 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
-        codestream.request_tlm_marker(tlm_marker);          
+        codestream.request_tlm_marker(tlm_marker);
 
         yuv.open(input_filename);
         base = &yuv;
@@ -1034,7 +1038,7 @@ int main(int argc, char * argv[]) {
         codestream.set_planar(true);
         if (profile_string[0] != '\0')
           codestream.set_profile(profile_string);
-        codestream.set_tilepart_divisions(tileparts_at_resolutions, 
+        codestream.set_tilepart_divisions(tileparts_at_resolutions,
                                           tileparts_at_components);
         codestream.request_tlm_marker(tlm_marker);
 
@@ -1102,7 +1106,7 @@ int main(int argc, char * argv[]) {
         OJPH_ERROR(0x01000041,
           "unknown input file extension; only pgm, ppm, dpx,"
           " or raw(yuv) are supported\n");
-#endif // !OJPH_ENABLE_TIFF_SUPPORT 
+#endif // !OJPH_ENABLE_TIFF_SUPPORT
     }
     else
       OJPH_ERROR(0x01000051,
@@ -1137,7 +1141,7 @@ int main(int argc, char * argv[]) {
     else
     {
       ojph::param_siz siz = codestream.access_siz();
-      ojph::ui32 height = siz.get_image_extent().y; 
+      ojph::ui32 height = siz.get_image_extent().y;
       height -= siz.get_image_offset().y;
       for (ojph::ui32 i = 0; i < height; ++i)
       {
