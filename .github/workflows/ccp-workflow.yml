@@ -24,6 +24,10 @@ on:
         required: false
         default: 'info'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -42,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
@@ -61,17 +65,25 @@ jobs:
       fail-fast: false
       matrix:
         include: [
-          { system: MacOS-Intel,    runner: macos-15-intel },
-          { system: MacOS-latest,   runner: macos-latest },
-          { system: Ubuntu-22,      runner: ubuntu-22.04 },
-          { system: Ubuntu-latest,  runner: ubuntu-latest },
+          { system: MacOS-Intel-gcc,     runner: macos-15-intel,  cc: gcc,   cxx: g++ },
+          { system: MacOS-Intel-clang,   runner: macos-15-intel,  cc: clang, cxx: clang++ },
+          { system: MacOS-latest-gcc,    runner: macos-latest,    cc: gcc,   cxx: g++ },
+          { system: MacOS-latest-clang,  runner: macos-latest,    cc: clang, cxx: clang++ },
+          { system: Ubuntu-22-gcc,       runner: ubuntu-22.04,    cc: gcc,   cxx: g++ },
+          { system: Ubuntu-22-clang,     runner: ubuntu-22.04,    cc: clang, cxx: clang++ },
+          { system: Ubuntu-latest-gcc,   runner: ubuntu-latest,   cc: gcc,   cxx: g++ },
+          { system: Ubuntu-latest-clang, runner: ubuntu-latest,   cc: clang, cxx: clang++ },
         ]
 
     name: ${{ matrix.system }} Build and Test
     runs-on: ${{ matrix.runner }}
 
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
@@ -101,7 +113,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
@@ -136,7 +148,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
@@ -172,7 +184,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
@@ -195,11 +207,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+      - uses: uraimo/run-on-arch-action@460cb8e6d9f726a588fc9b5e681c8a6cab09ae41 #3.2.0
         with:
           arch: armv7
           distro: ubuntu22.04
@@ -220,11 +232,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+      - uses: uraimo/run-on-arch-action@460cb8e6d9f726a588fc9b5e681c8a6cab09ae41 #3.2.0
         with:
           arch: s390x
           distro: ubuntu22.04
@@ -248,13 +260,13 @@ jobs:
             include: [ { dist: ubuntu22.04 }, { dist: ubuntu_latest } ]
 
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 #v6.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           persist-credentials: false
 
-      - uses: uraimo/run-on-arch-action@f9b26e3a1a408d5fd530d20c17b9f3f4428ff8d9 #3.1.0
+      - uses: uraimo/run-on-arch-action@460cb8e6d9f726a588fc9b5e681c8a6cab09ae41 #3.2.0
         with:
-          arch: s390x
+          arch: ppc64le
           distro: ${{ matrix.dist }}
           githubToken: ${{ github.token }}
           install: |

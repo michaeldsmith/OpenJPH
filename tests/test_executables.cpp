@@ -2,21 +2,21 @@
 // This software is released under the 2-Clause BSD license, included
 // below.
 //
-// Copyright (c) 2019, Aous Naman 
+// Copyright (c) 2019, Aous Naman
 // Copyright (c) 2019, Kakadu Software Pty Ltd, Australia
 // Copyright (c) 2019, The University of New South Wales, Australia
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright
 // notice, this list of conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright
 // notice, this list of conditions and the following disclaimer in the
 // documentation and/or other materials provided with the distribution.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 // IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 // TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -254,6 +254,174 @@ void compare_files(const std::string& base_filename,
   catch (const std::runtime_error& error) {
     FAIL() << error.what();
   }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                          run_ojph_compress_raw
+////////////////////////////////////////////////////////////////////////////////
+// Same as run_ojph_compress, but the input file is one the test generated in
+// OUT_FILE_DIR rather than one of the reference files.
+void run_ojph_compress_raw(const std::string& src_filename,
+  const std::string& base_filename,
+  const std::string& out_ext,
+  const std::string& extra_options)
+{
+  try {
+    std::string result, command;
+    command = std::string(COMPRESS_EXECUTABLE)
+      + " -i " + OUT_FILE_DIR + src_filename
+      + " -o " + OUT_FILE_DIR + base_filename + "." + out_ext
+      + " " + extra_options;
+    EXPECT_EQ(execute(command, result), 0);
+  }
+  catch (const std::runtime_error& error) {
+    FAIL() << error.what();
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                             raw_test_sample
+////////////////////////////////////////////////////////////////////////////////
+// The .raw tests below all use one frame shape, RAW_TEST_WIDTH by
+// RAW_TEST_HEIGHT, and fill it with a ramp that starts at the smallest and
+// ends at the largest sample the component can hold.  The two dimensions
+// multiply to 65536, so for a 16 bit component the ramp's step is exactly 1
+// and one frame sweeps every value a 16 bit sample can take, exactly once;
+// for the other widths the ramp covers the whole range in even steps, and the
+// two ends of the range are always included.
+#define RAW_TEST_WIDTH        256
+#define RAW_TEST_HEIGHT       256
+#define RAW_TEST_NUM_SAMPLES  (RAW_TEST_WIDTH * RAW_TEST_HEIGHT)
+
+static
+ojph::si64 raw_test_sample(ojph::ui32 idx, ojph::ui32 bit_depth,
+                           bool is_signed)
+{
+  ojph::si64 lower, upper;
+  if (is_signed) {
+    upper = ((ojph::si64)1 << (bit_depth - 1)) - 1;
+    lower = -((ojph::si64)1 << (bit_depth - 1));
+  }
+  else {
+    upper = ((ojph::si64)1 << bit_depth) - 1;
+    lower = 0;
+  }
+  return lower
+    + (ojph::si64)idx * (upper - lower) / (RAW_TEST_NUM_SAMPLES - 1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                           write_raw_test_file
+////////////////////////////////////////////////////////////////////////////////
+// Writes the frame described above to OUT_FILE_DIR as a one component .raw
+// file.  .raw files hold samples least significant byte first; the bytes are
+// composed with shifts rather than by copying a wider integer, so that the
+// file this writes is identical on little- and big-endian machines.
+void write_raw_test_file(const std::string& filename, ojph::ui32 bit_depth,
+  bool is_signed)
+{
+  std::string name = std::string(OUT_FILE_DIR) + filename;
+  FILE* f = fopen(name.c_str(), "wb");
+  if (f == NULL) {
+    FAIL() << "Unable to open file " << name << " for writing.";
+    return;
+  }
+
+  ojph::ui32 bytes_per_sample = (bit_depth + 7) >> 3;
+  ojph::ui8 line[RAW_TEST_WIDTH * 4];
+  size_t line_size = (size_t)RAW_TEST_WIDTH * bytes_per_sample;
+  for (ojph::ui32 y = 0; y < RAW_TEST_HEIGHT; ++y) {
+    ojph::ui8* dp = line;
+    for (ojph::ui32 x = 0; x < RAW_TEST_WIDTH; ++x) {
+      ojph::ui32 idx = y * RAW_TEST_WIDTH + x;
+      ojph::ui64 val = (ojph::ui64)raw_test_sample(idx, bit_depth, is_signed);
+      for (ojph::ui32 b = 0; b < bytes_per_sample; ++b)
+        *dp++ = (ojph::ui8)((val >> (8 * b)) & 0xFFu);
+    }
+    EXPECT_EQ(fwrite(line, 1, line_size, f), line_size);
+  }
+  fclose(f);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                          compare_raw_test_file
+////////////////////////////////////////////////////////////////////////////////
+// Checks a decoded one component .raw file against the frame that
+// write_raw_test_file() wrote, sample by sample.  The sign of a negative
+// sample is recovered with an explicit subtraction, so that this reads the
+// file the same way on little- and big-endian machines.
+void compare_raw_test_file(const std::string& filename, ojph::ui32 bit_depth,
+  bool is_signed)
+{
+  std::string name = std::string(OUT_FILE_DIR) + filename;
+  FILE* f = fopen(name.c_str(), "rb");
+  if (f == NULL) {
+    FAIL() << "Unable to open file " << name << " for reading.";
+    return;
+  }
+
+  ojph::ui32 bytes_per_sample = (bit_depth + 7) >> 3;
+  ojph::ui64 sign_bit = (ojph::ui64)1 << (8 * bytes_per_sample - 1);
+  ojph::ui32 num_mismatches = 0, first_idx = 0;
+  ojph::si64 first_expected = 0, first_found = 0;
+  ojph::ui8 line[RAW_TEST_WIDTH * 4];
+  size_t line_size = (size_t)RAW_TEST_WIDTH * bytes_per_sample;
+  for (ojph::ui32 y = 0; y < RAW_TEST_HEIGHT; ++y) {
+    if (fread(line, 1, line_size, f) != line_size) {
+      fclose(f);
+      FAIL() << "Not enough data in file " << name << ".";
+      return;
+    }
+    const ojph::ui8* sp = line;
+    for (ojph::ui32 x = 0; x < RAW_TEST_WIDTH; ++x) {
+      ojph::ui64 val = 0;
+      for (ojph::ui32 b = 0; b < bytes_per_sample; ++b)
+        val |= (ojph::ui64)*sp++ << (8 * b);
+      ojph::si64 found = (ojph::si64)val;
+      if (is_signed && (val & sign_bit))
+        found -= (ojph::si64)sign_bit << 1;
+
+      ojph::ui32 idx = y * RAW_TEST_WIDTH + x;
+      ojph::si64 expected = raw_test_sample(idx, bit_depth, is_signed);
+      if (found != expected) {
+        if (num_mismatches == 0) {
+          first_idx = idx;
+          first_expected = expected;
+          first_found = found;
+        }
+        ++num_mismatches;
+      }
+    }
+  }
+  fclose(f);
+
+  EXPECT_EQ(num_mismatches, 0u) << num_mismatches << " of "
+    << RAW_TEST_NUM_SAMPLES << " samples do not survive the round trip; the "
+    "first is sample " << first_idx << ", which should be " << first_expected
+    << " but is " << first_found << ".";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//                          run_raw_round_trip_test
+////////////////////////////////////////////////////////////////////////////////
+// Writes a .raw file of the given width and signedness, encodes it
+// reversibly, decodes it, and requires the round trip to be bit exact.
+void run_raw_round_trip_test(const std::string& base_filename,
+  ojph::ui32 bit_depth, bool is_signed)
+{
+  std::string src_filename = base_filename + "_src.raw";
+  std::string signedness = is_signed ? "true" : "false";
+  char bit_depth_str[16];
+  snprintf(bit_depth_str, sizeof(bit_depth_str), "%d", (int)bit_depth);
+
+  write_raw_test_file(src_filename, bit_depth, is_signed);
+  run_ojph_compress_raw(src_filename, base_filename, "j2c",
+                        "-reversible true -dims \"{256,256}\" -num_comps 1"
+                        " -downsamp \"{1,1}\" -bit_depth "
+                        + std::string(bit_depth_str)
+                        + " -signed " + signedness);
+  run_ojph_compress_expand(base_filename, "j2c", "raw");
+  compare_raw_test_file(base_filename + ".raw", bit_depth, is_signed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -859,7 +1027,7 @@ TEST(TestExecutables, SimpleDecIrv53BhvhbLowLatency) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64.j2c -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv9764x64) {
@@ -875,7 +1043,7 @@ TEST(TestExecutables, SimpleEncIrv9764x64) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_32x32.j2c -qstep 0.01 -block_size {32,32}
 TEST(TestExecutables, SimpleEncIrv9732x32) {
@@ -891,7 +1059,7 @@ TEST(TestExecutables, SimpleEncIrv9732x32) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_16x16.j2c -qstep 0.01 -block_size {16,16}
 TEST(TestExecutables, SimpleEncIrv9716x16) {
@@ -907,7 +1075,7 @@ TEST(TestExecutables, SimpleEncIrv9716x16) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_4x4.j2c -qstep 0.01 -block_size {4,4}
 TEST(TestExecutables, SimpleEncIrv974x4) {
@@ -923,7 +1091,7 @@ TEST(TestExecutables, SimpleEncIrv974x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_1024x4.j2c -qstep 0.01 -block_size {4,1024}
 TEST(TestExecutables, SimpleEncIrv971024x4) {
@@ -939,7 +1107,7 @@ TEST(TestExecutables, SimpleEncIrv971024x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_4x1024.j2c -qstep 0.01 -block_size {1024,4}
 TEST(TestExecutables, SimpleEncIrv974x1024) {
@@ -955,7 +1123,7 @@ TEST(TestExecutables, SimpleEncIrv974x1024) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_512x8.j2c -qstep 0.01 -block_size {8,512}
 TEST(TestExecutables, SimpleEncIrv97512x8) {
@@ -971,7 +1139,7 @@ TEST(TestExecutables, SimpleEncIrv97512x8) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_8x512.j2c -qstep 0.01 -block_size {512,8}
 TEST(TestExecutables, SimpleEncIrv978x512) {
@@ -987,7 +1155,7 @@ TEST(TestExecutables, SimpleEncIrv978x512) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_256x16.j2c -qstep 0.01 -block_size {16,256}
 TEST(TestExecutables, SimpleEncIrv97256x16) {
@@ -1003,7 +1171,7 @@ TEST(TestExecutables, SimpleEncIrv97256x16) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_16x256.j2c -qstep 0.01 -block_size {256,16}
 TEST(TestExecutables, SimpleEncIrv9716x256) {
@@ -1019,7 +1187,7 @@ TEST(TestExecutables, SimpleEncIrv9716x256) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_128x32.j2c -qstep 0.01 -block_size {32,128}
 TEST(TestExecutables, SimpleEncIrv97128x32) {
@@ -1035,7 +1203,7 @@ TEST(TestExecutables, SimpleEncIrv97128x32) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_32x128.j2c -qstep 0.01 -block_size {128,32}
 TEST(TestExecutables, SimpleEncIrv9732x128) {
@@ -1051,7 +1219,7 @@ TEST(TestExecutables, SimpleEncIrv9732x128) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_tiles_33x33_d5.j2c -qstep 0.01 -tile_size {33,33}
 // -num_decomps 5
@@ -1068,7 +1236,7 @@ TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D5) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_tiles_33x33_d6.j2c -qstep 0.01 -tile_size {33,33}
 // -num_decomps 6
@@ -1085,7 +1253,7 @@ TEST(TestExecutables, SimpleEncIrv9764x64Tiles33x33D6) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_16bit.j2c -qstep 0.01
 TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
@@ -1101,7 +1269,7 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bit) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_16bit_gray.j2c -qstep 0.01
 TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
@@ -1117,7 +1285,7 @@ TEST(TestExecutables, SimpleEncIrv9764x6416bitGray) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev5364x6416bit) {
@@ -1133,7 +1301,7 @@ TEST(TestExecutables, SimpleEncRev5364x6416bit) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit_gray.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
@@ -1149,7 +1317,7 @@ TEST(TestExecutables, SimpleEncRev5364x6416bitGray) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_16bit.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev5364x64) {
@@ -1165,7 +1333,7 @@ TEST(TestExecutables, SimpleEncRev5364x64) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_32x32.j2c -reversible true -block_size {32,32}
 TEST(TestExecutables, SimpleEncRev5332x32) {
@@ -1181,7 +1349,7 @@ TEST(TestExecutables, SimpleEncRev5332x32) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_4x4.j2c -reversible true -block_size {4,4}
 TEST(TestExecutables, SimpleEncRev534x4) {
@@ -1197,7 +1365,7 @@ TEST(TestExecutables, SimpleEncRev534x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_1024x4.j2c -reversible true -block_size {4,1024}
 TEST(TestExecutables, SimpleEncRev531024x4) {
@@ -1213,7 +1381,7 @@ TEST(TestExecutables, SimpleEncRev531024x4) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_4x1024.j2c -reversible true -block_size {1024,4}
 TEST(TestExecutables, SimpleEncRev534x1024) {
@@ -1229,7 +1397,7 @@ TEST(TestExecutables, SimpleEncRev534x1024) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_tiles_33x33_d5.j2c -reversible true -tile_size
 // {32,32} -num_decomps 5
@@ -1246,7 +1414,7 @@ TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D5) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_tiles_33x33_d6.j2c -reversible true -tile_size
 // {32,32} -num_decomps 6
@@ -1263,7 +1431,7 @@ TEST(TestExecutables, SimpleEncRev5364x64Tiles33x33D6) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_64x64_yuv.j2c -qstep 0.1 -dims {352,288} -num_comps 3
 // -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed false,false,false
@@ -1282,7 +1450,7 @@ TEST(TestExecutables, SimpleEncIrv9764x64Yuv) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_64x64_yuv.j2c -reversible true -qstep 0.1 -dims
 // {352,288} -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8 -signed
@@ -1302,7 +1470,7 @@ TEST(TestExecutables, SimpleEncRev5364x64Yuv) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow.j2c -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
@@ -1318,7 +1486,7 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the irv97 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_irv97_tall_narrow1.j2c -image_offset {1,0} -qstep 0.1
 TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
@@ -1334,7 +1502,7 @@ TEST(TestExecutables, SimpleEncIrv97TallNarrow1) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_tall_narrow.j2c -reversible true
 TEST(TestExecutables, SimpleEncRev53TallNarrow) {
@@ -1350,7 +1518,7 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o simple_enc_rev53_tall_narrow1.j2c -image_offset {1,0} -reversible true
 TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
@@ -1366,7 +1534,7 @@ TEST(TestExecutables, SimpleEncRev53TallNarrow1) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_10bit_le_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72010bitLeNuke11) {
@@ -1382,7 +1550,7 @@ TEST(TestExecutables, DpxEnc1280x72010bitLeNuke11) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_10bit_be_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72010bitBeNuke11) {
@@ -1398,7 +1566,7 @@ TEST(TestExecutables, DpxEnc1280x72010bitBeNuke11) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_16bit_le_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72016bitLeNuke11) {
@@ -1414,7 +1582,7 @@ TEST(TestExecutables, DpxEnc1280x72016bitLeNuke11) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_16bit_be_nuke11.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72016bitBeNuke11) {
@@ -1430,7 +1598,7 @@ TEST(TestExecutables, DpxEnc1280x72016bitBeNuke11) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_10bit_resolve18.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72010bitResolve18) {
@@ -1446,7 +1614,7 @@ TEST(TestExecutables, DpxEnc1280x72010bitResolve18) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Test ojph_compress with codeblocks when the rev53 wavelet is used.
-// We test by comparing MSE and PAE of decoded images. 
+// We test by comparing MSE and PAE of decoded images.
 // The compressed file is obtained using these command-line options:
 // -o dpx_enc_1280x720_16bit_resolve18.j2c -reversible true
 TEST(TestExecutables, DpxEnc1280x72016bitResolve18) {
@@ -1458,6 +1626,105 @@ TEST(TestExecutables, DpxEnc1280x72016bitResolve18) {
   run_ojph_compress_expand("dpx_enc_1280x720_16bit_resolve18", "j2c", "ppm");
   run_mse_pae("dpx_enc_1280x720_16bit_resolve18", "ppm",
               "dpx_1280x720_16bit.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with qfactor on a 3-component PPM image.
+// We test by comparing MSE and PAE of decoded images.
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_qfactor50.j2c -qfactor 50
+TEST(TestExecutables, SimpleEncIrv97Qfactor50) {
+  double mse[3] = { 34.1747, 31.8416, 41.5334 };
+  int pae[3] = { 54, 55, 54 };
+  run_ojph_compress("Malamute.ppm",
+                    "simple_enc_irv97_qfactor50", "", "j2c",
+                    "-qfactor 50");
+  run_ojph_compress_expand("simple_enc_irv97_qfactor50", "j2c", "ppm");
+  run_mse_pae("simple_enc_irv97_qfactor50", "ppm",
+              "Malamute.ppm", "", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with qfactor on a 4:2:0 YUV image.
+// We test by comparing MSE and PAE of decoded images.
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_qfactor50_yuv.j2c -qfactor 50 -dims {352,288}
+// -num_comps 3 -downsamp {1,1},{2,2},{2,2} -bit_depth 8,8,8
+// -signed false,false,false
+TEST(TestExecutables, SimpleEncIrv97Qfactor50Yuv) {
+  double mse[3] = { 23.5159, 4.0584, 1.9829 };
+  int pae[3] = { 60, 17, 23 };
+  run_ojph_compress("foreman_420.yuv",
+                    "simple_enc_irv97_qfactor50_yuv", "", "j2c",
+                    "-qfactor 50 -dims \"{352,288}\" -num_comps 3 -downsamp"
+                    " \"{1,1}\",\"{2,2}\",\"{2,2}\" -bit_depth 8,8,8"
+                    " -signed false,false,false");
+  run_ojph_compress_expand("simple_enc_irv97_qfactor50_yuv", "j2c", "yuv");
+  run_mse_pae("simple_enc_irv97_qfactor50_yuv", "yuv",
+              "foreman_420.yuv", ":352x288x8x420", 3, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress with qfactor on a 1-component PGM image.
+// We test by comparing MSE and PAE of decoded images.
+// The compressed file is obtained using these command-line options:
+// -o simple_enc_irv97_qfactor50_gray.j2c -qfactor 50
+TEST(TestExecutables, SimpleEncIrv97Qfactor50Gray) {
+  double mse[1] = { 23.245 };
+  int pae[1] = { 72 };
+  run_ojph_compress("monarch.pgm",
+                    "simple_enc_irv97_qfactor50_gray", "", "j2c",
+                    "-qfactor 50");
+  run_ojph_compress_expand("simple_enc_irv97_qfactor50_gray", "j2c", "pgm");
+  run_mse_pae("simple_enc_irv97_qfactor50_gray", "pgm",
+              "monarch.pgm", "", 1, mse, pae);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Test ojph_compress and ojph_expand on .raw files, which are the only input
+// for which the readers are told the signedness of the samples rather than
+// deriving it from the file, and the only input that can carry signed
+// samples.  Each test encodes one frame reversibly and requires the decoded
+// frame to be bit exact; there is one test per sample width that
+// raw_in::read() and raw_out::write() handle separately, in both
+// signednesses, because each of those branches extends samples in its own
+// way.  The 16 bit frames sweep all 65536 sample values, so at the width
+// where the reader regressed the negative half of the range is covered
+// exhaustively.
+// The compressed files are obtained using these command-line options:
+// -o simple_enc_rev53_raw<width>_<signedness>.j2c -reversible true
+// -dims {256,256} -num_comps 1 -downsamp {1,1} -bit_depth <width>
+// -signed <signedness>
+TEST(TestExecutables, SimpleEncRev53Raw8Signed) {
+  run_raw_round_trip_test("simple_enc_rev53_raw8_signed", 8, true);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw8Unsigned) {
+  run_raw_round_trip_test("simple_enc_rev53_raw8_unsigned", 8, false);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw16Signed) {
+  run_raw_round_trip_test("simple_enc_rev53_raw16_signed", 16, true);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw16Unsigned) {
+  run_raw_round_trip_test("simple_enc_rev53_raw16_unsigned", 16, false);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw24Signed) {
+  run_raw_round_trip_test("simple_enc_rev53_raw24_signed", 24, true);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw24Unsigned) {
+  run_raw_round_trip_test("simple_enc_rev53_raw24_unsigned", 24, false);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw32Signed) {
+  run_raw_round_trip_test("simple_enc_rev53_raw32_signed", 32, true);
+}
+
+TEST(TestExecutables, SimpleEncRev53Raw32Unsigned) {
+  run_raw_round_trip_test("simple_enc_rev53_raw32_unsigned", 32, false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
