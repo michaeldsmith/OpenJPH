@@ -1,4 +1,3 @@
-
 # Fetch googletest
 include(FetchContent)
 FetchContent_Declare(
@@ -33,15 +32,59 @@ add_executable(
 add_executable(
   test_executables
   test_executables.cpp
+  test_truncated_decode.cpp
+)
+
+# test_truncated_decode.cpp drives the library directly, rather than through
+# ojph_expand, so that it can test both resilient and non-resilient decoding
+# of the same truncated codestream.
+target_link_libraries(
+  test_executables
+  openjph
+  GTest::gtest_main
+)
+
+# configure QCD/QCC marker tests (library API tests)
+add_executable(
+  test_mixed_coc
+  test_mixed_coc.cpp
 )
 
 target_link_libraries(
-  test_executables
+  test_mixed_coc
+  openjph
+  GTest::gtest_main
+)
+
+# configure the NLT (non-linearity point transformation) API tests
+add_executable(
+  test_nlt
+  test_nlt.cpp
+)
+
+target_link_libraries(
+  test_nlt
+  openjph
+  GTest::gtest_main
+)
+
+# configure TLM marker tests (library API tests)
+add_executable(
+  test_tlm
+  test_tlm.cpp
+)
+
+target_link_libraries(
+  test_tlm
+  openjph
   GTest::gtest_main
 )
 
 include(GoogleTest)
 gtest_add_tests(TARGET test_executables)
+gtest_add_tests(TARGET test_mixed_coc)
+gtest_add_tests(TARGET test_nlt)
+gtest_add_tests(TARGET test_tlm)
 
 if (MSVC)
   add_custom_command(TARGET test_executables POST_BUILD
