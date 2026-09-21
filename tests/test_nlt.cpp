@@ -146,6 +146,28 @@ namespace {
   }
 
   ///////////////////////////////////////////////////////////////////////////
+  // A look-up table whose entries only cover the middle half of the range of
+  // 32 bit patterns, from 1/4 to 3/4 of it, although the table is indexed over
+  // the whole range.  The curve is a straight line.  The first and the last
+  // entry of a table are not, in general, the smallest and the largest value
+  // the table is indexed with, and this table checks that the encoder does
+  // not mix the two up.
+  ///////////////////////////////////////////////////////////////////////////
+  const ui32 narrowLutNumPoints = 129;
+  ui32 narrowLutPoints[narrowLutNumPoints];
+  bool narrowLutReady = false;
+
+  void prepare_narrow_lut()
+  {
+    if (narrowLutReady)
+      return;
+    for (ui32 i = 0; i < narrowLutNumPoints; ++i)
+      narrowLutPoints[i] = (ui32)(1073741824.0 +
+        ((double)i / (narrowLutNumPoints - 1)) * 2147483648.0);
+    narrowLutReady = true;
+  }
+
+  ///////////////////////////////////////////////////////////////////////////
   // An image held in memory.  A sample is the 32 bit pattern of an image
   // sample, which is what a .pfm file holds; for a floating point image these
   // are the IEEE-754 single precision bit patterns of the samples.
@@ -339,6 +361,7 @@ namespace {
   {
     ui8 type;            // 0, 2, 3 or 4
     bool use_pfm_lut;    // true: the look-up table used for .pfm images
+    bool use_narrow_lut = false;  // true: the table of narrowLutPoints
     bool reversible;     // false: the 9/7 wavelet, true: the 5/3 wavelet
     float qstep;         // the quantization step used with the 9/7 wavelet
   };
@@ -366,7 +389,16 @@ namespace {
     {
       ui32 d_min, d_max, num_points;
       void* points;
-      if (setting.use_pfm_lut)
+      if (setting.use_narrow_lut)
+      {  // indexed over the whole range of 32 bit patterns, like the identity
+         // table, but its entries only cover the middle half of it
+        prepare_narrow_lut();
+        d_min = 0;
+        d_max = 0xFFFFFFFFu;
+        num_points = narrowLutNumPoints;
+        points = (void*)narrowLutPoints;
+      }
+      else if (setting.use_pfm_lut)
       {
         d_min = pfmLutDmin;
         d_max = pfmLutDmax;
@@ -864,6 +896,82 @@ TEST(NltTest, LutStyleWithIdentityLutKeepsSamples)
       << " for a round trip without a nonlinearity";
     EXPECT_LT(nlt.max_rel_error, 0.01)
       << "nonlinearity " << (int)types[i] << " with an identity table";
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// The entries of a look-up table need not span the range the table is indexed
+// with.  The table used here is indexed over the whole range of 32 bit
+// patterns but its entries only cover the middle half of that range.  Samples
+// inside the range of the entries have to come back from a round trip, in
+// particular those next to the first and the last entry.  This fails if the
+// encoder maps the ends of the table to the values of the first and last
+// entries, instead of to the positions at which the table starts and stops.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, LutWithNarrowRangeOfEntriesKeepsSamples)
+{
+  const ui32 width = 128, height = 128;
+  const size_t count = (size_t)width * height;
+
+  // types 2 and 4 index the table with the sample and with the sample after
+  // it has been converted from binary complement to sign magnitude,
+  // respectively; that conversion is its own inverse, so it is also how a
+  // ramp expressed in the domain of the table is turned into samples
+  const si64 bias = ((si64)1 << 31) + 1;
+  const ui8 types[2] = { param_nlt::OJPH_NLT_LUT_STYLE_NLT,
+                         param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT };
+  for (size_t t = 0; t < 2; ++t)
+  {
+    const bool smag = types[t] == param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT;
+
+    // a ramp over the range the entries of the table cover, -2^30 to 2^30
+    test_image img;
+    img.width = width;
+    img.height = height;
+    img.num_comps = 1;
+    img.samples.assign(1, std::vector<si32>(count, 0));
+    for (size_t i = 0; i < count; ++i)
+    {
+      si64 u = -((si64)1 << 30) + ((si64)1 << 31) * (si64)i / (si64)(count - 1);
+      img.samples[0][i] = (si32)((smag && u < 0) ? -u - bias : u);
+    }
+
+    nlt_setting setting;
+    setting.type = types[t];
+    setting.use_pfm_lut = false;
+    setting.use_narrow_lut = true;
+    setting.reversible = false;
+    setting.qstep = 1e-5f;
+
+    const std::string tag = "nlt_narrow_lut_" + std::to_string((int)types[t]);
+    const std::string filename = std::string(OUT_FILE_DIR) + tag + ".j2c";
+    encode_image(filename, img, setting);
+    test_image decoded;
+    decode_image(filename, decoded, NULL, NULL, NULL, NULL);
+    ASSERT_EQ(decoded.samples.size(), 1u) << tag;
+    ASSERT_EQ(decoded.samples[0].size(), count) << tag;
+
+    // compare in the domain of the table, where an error of a given size
+    // means the same thing everywhere; the tolerance is a very small part
+    // of the range of the ramp, while the error this test looks for is a
+    // sizeable part of it
+    si64 max_error = 0;
+    size_t worst = 0;
+    for (size_t i = 0; i < count; ++i)
+    {
+      si64 a = img.samples[0][i], b = decoded.samples[0][i];
+      if (smag && a < 0) a = -a - bias;
+      if (smag && b < 0) b = -b - bias;
+      const si64 err = a > b ? a - b : b - a;
+      if (err > max_error)
+      {
+        max_error = err;
+        worst = i;
+      }
+    }
+    EXPECT_LT(max_error, (si64)1 << 20)
+      << "nonlinearity " << (int)types[t] << ": sample " << worst
+      << " of the ramp came back with an error of " << max_error;
   }
 }
 
