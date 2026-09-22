@@ -2152,9 +2152,12 @@ namespace ojph {
       if (bytes_per_point == 1)
       {
         ui8* p = (ui8*)marker_points;
-        enc_points[-1] = enc_points[0] = ft_min = (float)p[0] * div;
+        ft_min = (float)p[0] * div;
+        // enc_points holds positions in the domain of the LUT, whose first
+        // and last entries are fd_min and fd_max, not LUT values
+        enc_points[-1] = enc_points[0] = fd_min;
         ft_max = (float)p[num_points - 1] * div;
-        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = ft_max;
+        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = fd_max;
         delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
         inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
@@ -2178,9 +2181,12 @@ namespace ojph {
       }
       else if (bytes_per_point == 2) {
         ui16* p = (ui16*)marker_points;
-        enc_points[-1] = enc_points[0] = ft_min = (float)p[0] * div;
+        ft_min = (float)p[0] * div;
+        // enc_points holds positions in the domain of the LUT, whose first
+        // and last entries are fd_min and fd_max, not LUT values
+        enc_points[-1] = enc_points[0] = fd_min;
         ft_max = (float)p[num_points - 1] * div;
-        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = ft_max;
+        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = fd_max;
         delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
         inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
@@ -2204,9 +2210,12 @@ namespace ojph {
       }
       else if (bytes_per_point == 4) {
         ui32* p = (ui32*)marker_points;
-        enc_points[-1] = enc_points[0] = ft_min = (float)p[0] * div;
+        ft_min = (float)p[0] * div;
+        // enc_points holds positions in the domain of the LUT, whose first
+        // and last entries are fd_min and fd_max, not LUT values
+        enc_points[-1] = enc_points[0] = fd_min;
         ft_max = (float)p[num_points - 1] * div;
-        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = ft_max;
+        enc_points[enc_num_points] = enc_points[enc_num_points - 1] = fd_max;
         delta = (ft_max - ft_min) / (float)(enc_num_points - 1);
         inv_delta = (float)(enc_num_points - 1) / (ft_max - ft_min);
 
