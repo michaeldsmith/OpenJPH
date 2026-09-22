@@ -890,7 +890,7 @@ namespace ojph {
       // memebers for encoding -- we also use some from decoding
       float* enc_points;     // LUT points for encoding -- must be float
       ui32 enc_num_points;   // # of points for encoding (larger than decoding)
-      float ft_min, ft_max;  // float d_min and d_max
+      float ft_min, ft_max;  // float first and last LUT points
       ui32 cal_store_size_for_encoding(ui32 enc_num_points)
       { // add 2 extra points, one before the enc_num_points table and one after
         this->enc_num_points = enc_num_points;
