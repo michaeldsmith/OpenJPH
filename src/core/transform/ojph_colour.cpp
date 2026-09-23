@@ -355,6 +355,141 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
+    // The exact inverse of a LUT style nonlinearity, applied to a value t in
+    // [0, 1].  The LUT maps the coded value fd_min + k * dt to the LUT point
+    // p[k], so the inverse maps a t between p[k] and p[k + 1] back onto that
+    // interval of coded values; a binary search finds k.  Values outside the
+    // range of the LUT points are clipped to it.
+    template<typename T>
+    static inline
+    float exact_nlt_inverse(float t, const T* p, ui32 num_points, float div,
+                            float fd_min, float dt, float ft_min, float ft_max)
+    {
+      t = ojph_max(t, ft_min);
+      t = ojph_min(t, ft_max);
+      // the search narrows the range [lo, hi] while keeping
+      // p[lo] <= t <= p[hi], until hi == lo + 1; lo is then the segment
+      // of the LUT that holds t
+      ui32 lo = 0, hi = num_points - 1;
+      while (hi - lo > 1)
+      {
+        ui32 mid = (lo + hi) >> 1;
+        if (t >= (float)p[mid] * div)
+        {
+          lo = mid;
+        }
+        else
+        {
+          hi = mid;
+        }
+      }
+      float t_k = (float)p[lo] * div, t_kp1 = (float)p[lo + 1] * div;
+      // two LUT points can become equal when converted to float; such a
+      // segment has no width, and t is then its own end point
+      float f = t_kp1 > t_k ? (t - t_k) / (t_kp1 - t_k) : 0.0f;
+      return fd_min + ((float)lo + f) * dt;
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    template<int NLT_TYPE, typename T>
+    static inline
+    void local_irv_convert_to_float_nlt2or4_exact(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
+    {
+      assert((src_line->flags & line_buf::LFT_32BIT) &&
+             (src_line->flags & line_buf::LFT_INTEGER) &&
+             (dst_line->flags & line_buf::LFT_32BIT) &&
+             (dst_line->flags & line_buf::LFT_INTEGER) == 0);
+      ojph_unused(is_signed);
+
+      assert(bit_depth <= 32);
+      const float mul = (float)(1.0 / (double)(1ULL << bit_depth));
+      const T* p = (const T*)rec->marker_points;
+      const ui32 n = rec->num_points;
+      const float div = 1.0f / (float)(1ull << rec->pt_val);
+      const float dt = (rec->fd_max - rec->fd_min) / (float)(n - 1);
+      const float fd_min = rec->fd_min, ft_min = rec->ft_min;
+      const float ft_max = rec->ft_max;
+
+      const si32* sp = src_line->i32 + src_line_offset;
+      float* dp = dst_line->f32;
+      if (rec->is_signed())
+      {
+        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        for (int i = (int)width; i > 0; --i) {
+          si32 v = *sp++;
+          if (NLT_TYPE == 4)
+          {
+            v = (v >= 0) ? v : (- v - bias);
+          }
+          float t = (float)v * mul + 0.5f;  // convert to [0, 1]
+          *dp++ = exact_nlt_inverse(t, p, n, div, fd_min, dt,
+                                    ft_min, ft_max) - 0.5f;
+        }
+      }
+      else
+      {
+        for (int i = (int)width; i > 0; --i) {
+          si32 v = *sp++;
+          float t = (float)v * mul;  // it is in [0, 1]
+          *dp++ = exact_nlt_inverse(t, p, n, div, fd_min, dt,
+                                    ft_min, ft_max) - 0.5f;
+        }
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    template<int NLT_TYPE>
+    static inline
+    void local_irv_convert_to_float_nlt2or4_exact(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line,
+      ui32 bit_depth, bool is_signed, ui32 width, const nlt_rec* rec)
+    { // the LUT points are 1, 2 or 4 bytes each, as PTval says
+      if (rec->bytes_per_point == 1)
+      {
+        local_irv_convert_to_float_nlt2or4_exact<NLT_TYPE, ui8>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      }
+      else if (rec->bytes_per_point == 2)
+      {
+        local_irv_convert_to_float_nlt2or4_exact<NLT_TYPE, ui16>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      }
+      else if (rec->bytes_per_point == 4)
+      {
+        local_irv_convert_to_float_nlt2or4_exact<NLT_TYPE, ui32>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      }
+      else
+      {
+        assert(0);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    void irv_convert_to_float_nlt_exact(const line_buf *src_line,
+      ui32 src_line_offset, line_buf *dst_line, ui32 bit_depth,
+      bool is_signed, ui32 width, const nlt_rec* rec)
+    {
+      using nl = nlt_rec::nonlinearity;
+      if (rec->get_type() == nl::OJPH_NLT_LUT_STYLE_NLT)
+      {
+        local_irv_convert_to_float_nlt2or4_exact<2>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      }
+      else if (rec->get_type() == nl::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
+      {
+        local_irv_convert_to_float_nlt2or4_exact<4>(src_line,
+          src_line_offset, dst_line, bit_depth, is_signed, width, rec);
+      }
+      else
+      {
+        assert(0);
+      }
+    }
+
+    //////////////////////////////////////////////////////////////////////////
     template<int NLT_TYPE>
     static inline
     void local_gen_irv_convert_to_float_nlt2or4(const line_buf *src_line,

@@ -384,9 +384,20 @@ namespace ojph {
               tc, num_bits[comp_num], is_signed[comp_num], comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type2 ||
             nlt_ptr[comp_num]->get_type() == type4)
-            irv_convert_to_float_nlt(line, line_offsets[comp_num],
-              tc, num_bits[comp_num], is_signed[comp_num], comp_width,
-              nlt_ptr[comp_num]);
+          {
+            if (nlt_ptr[comp_num]->use_exact_inverse)
+            {
+              irv_convert_to_float_nlt_exact(line, line_offsets[comp_num],
+                tc, num_bits[comp_num], is_signed[comp_num], comp_width,
+                nlt_ptr[comp_num]);
+            }
+            else
+            {
+              irv_convert_to_float_nlt(line, line_offsets[comp_num],
+                tc, num_bits[comp_num], is_signed[comp_num], comp_width,
+                nlt_ptr[comp_num]);
+            }
+          }
         }
         comps[comp_num].push_line();
       }
@@ -434,9 +445,20 @@ namespace ojph {
               comp_width);
           else if (nlt_ptr[comp_num]->get_type() == type2 ||
             nlt_ptr[comp_num]->get_type() == type4)
-            irv_convert_to_float_nlt(line, line_offsets[comp_num],
-              lines + comp_num, num_bits[comp_num], is_signed[comp_num],
-              comp_width, nlt_ptr[comp_num]);
+          {
+            if (nlt_ptr[comp_num]->use_exact_inverse)
+            {
+              irv_convert_to_float_nlt_exact(line, line_offsets[comp_num],
+                lines + comp_num, num_bits[comp_num], is_signed[comp_num],
+                comp_width, nlt_ptr[comp_num]);
+            }
+            else
+            {
+              irv_convert_to_float_nlt(line, line_offsets[comp_num],
+                lines + comp_num, num_bits[comp_num], is_signed[comp_num],
+                comp_width, nlt_ptr[comp_num]);
+            }
+          }
           if (comp_num == 2)
           { // irreversible color transform
             ict_forward(lines[0].f32, lines[1].f32, lines[2].f32,

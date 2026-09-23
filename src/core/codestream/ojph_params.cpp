@@ -452,10 +452,11 @@ namespace ojph {
                                           bool decoded_signedness,
                                           ui32 d_min, ui32 d_max, ui8 pt_val,
                                           ui16 num_points, void* points,
-                                          ui8 nl_type)
+                                          ui8 nl_type, bool use_exact_inverse)
   {
     state->set_nonlinear_transform(comp_num, decoded_bit_depth,
-      decoded_signedness, d_min, d_max, pt_val, num_points, points, nl_type);
+      decoded_signedness, d_min, d_max, pt_val, num_points, points, nl_type,
+      use_exact_inverse);
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -2149,6 +2150,29 @@ namespace ojph {
       // create lookup table for encoding
       float mul = (float)(1ull << pt_val);
       float div = 1.0f / mul;
+
+      // the first and the last LUT point, as a float
+      if (bytes_per_point == 1) {
+        ui8* p = (ui8*)marker_points;
+        ft_min = (float)p[0] * div;  ft_max = (float)p[num_points - 1] * div;
+      }
+      else if (bytes_per_point == 2) {
+        ui16* p = (ui16*)marker_points;
+        ft_min = (float)p[0] * div;  ft_max = (float)p[num_points - 1] * div;
+      }
+      else if (bytes_per_point == 4) {
+        ui32* p = (ui32*)marker_points;
+        ft_min = (float)p[0] * div;  ft_max = (float)p[num_points - 1] * div;
+      }
+      else
+        assert(0);
+
+      // the exact inverse reads the LUT points directly, no tables needed
+      if (use_exact_inverse)
+      {
+        return;
+      }
+
       if (bytes_per_point == 1)
       {
         ui8* p = (ui8*)marker_points;
@@ -2386,7 +2410,8 @@ namespace ojph {
                                             bool decoded_signedness,
                                             ui32 d_min, ui32 d_max, ui8 pt_val,
                                             ui16 num_points, void* points,
-                                            ui8 nl_type)
+                                            ui8 nl_type,
+                                            bool use_exact_inverse)
     {
       if (nl_type != ojph::param_nlt::OJPH_NLT_LUT_STYLE_NLT &&
           nl_type != ojph::param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT)
@@ -2423,6 +2448,7 @@ namespace ojph {
       p->rec.pt_val = pt_val;
       p->rec.num_points = num_points;
       p->rec.bytes_per_point = p->rec.get_bpp(pt_val);
+      p->rec.use_exact_inverse = use_exact_inverse;
 
       // Check that the LUT has increasing entries or has almost flat segments
       ui32 v_min = 0, v_max = 0;
@@ -2475,7 +2501,9 @@ namespace ojph {
       // find ceil of the ratio to a power of 2
       ui32 ienc_pnts;
       float enc_pnts = std::ceil((float)(v_max-v_min) / (float)(smallest_gap));
-      if (enc_pnts > 8192.0f)
+      // The check below can be skipped if using the exact inverse, 
+      // since no tables are built in that case, the LUT is used directly.
+      if (enc_pnts > 8192.0f && !use_exact_inverse)
       {
         ienc_pnts = 8192;
         OJPH_WARN(0x000501A1, "Encoding with LUT is performed with an "

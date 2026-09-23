@@ -851,6 +851,7 @@ namespace ojph {
         fd_min = fd_max = delta = inv_delta = multiplier = 0.0f;
         // encode
         enc_points = NULL; enc_num_points = 0;
+        use_exact_inverse = false;
       }
       ui8 get_type() const { return Tnlt; }
       ui8 get_bit_depth() const { return (ui8)((BDnlt & 0x7F) + 1u); }
@@ -893,16 +894,29 @@ namespace ojph {
       float ft_min, ft_max;  // float d_min and d_max
       ui32 cal_store_size_for_encoding(ui32 enc_num_points)
       { // add 2 extra points, one before the enc_num_points table and one after
+        if (use_exact_inverse) { // the exact inverse has no table of its own
+          this->enc_num_points = 0;
+          return (ui32)num_points * (ui32)get_bpp();
+        }
         this->enc_num_points = enc_num_points;
         return (ui32)(enc_num_points + 2u) * (ui32)sizeof(float)
           + (ui32)num_points * (ui32)get_bpp();
       }
       void assign_pointers_for_encoding()
       { // 2 extra points, one before the enc_num_points table and one after
+        if (use_exact_inverse) { // the exact inverse has no table of its own
+          marker_points = points_store;  enc_points = NULL;  dec_points = NULL;
+          return;
+        }
         enc_points = (float*)points_store + 1;  dec_points = NULL;
         marker_points = (ui8*)enc_points + (enc_num_points + 1) * sizeof(float);
       }
       void prepare_for_encoding();
+
+      // The encoder can invert the LUT exactly instead of sampling the
+      // inverse uniformly, using the LUT points themselves rather than a
+      // table of its own
+      bool use_exact_inverse;    // true: the encoder inverts the LUT exactly
     };
 
     // data structures used by param_nlt
@@ -945,7 +959,8 @@ namespace ojph {
                                    ui8 decoded_bit_depth,
                                    bool decoded_signedness,
                                    ui32 d_min, ui32 d_max, ui8 pt_val,
-                                   ui16 num_points, void* points, ui8 nl_type);
+                                   ui16 num_points, void* points, ui8 nl_type,
+                                   bool use_exact_inverse = false);
 
       bool get_nonlinear_transform(ui32 comp_num,
                                    ui8& decoded_bit_depth,

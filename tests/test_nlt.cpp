@@ -168,6 +168,19 @@ namespace {
   }
 
   ///////////////////////////////////////////////////////////////////////////
+  // A look-up table of three entries that are not on a straight line: the
+  // curve is made of two straight segments that meet at the middle entry,
+  // where the slope changes.  The inverse of this table changes slope at the
+  // value of the middle entry, and that value does not coincide with an entry
+  // of the uniformly sampled table the encoder derives from it.  Like the
+  // table above, it is indexed over the whole range of 32 bit patterns and
+  // its entries run from 1/4 to 3/4 of that range.
+  ///////////////////////////////////////////////////////////////////////////
+  const ui32 bentLutNumPoints = 3;
+  const ui32 bentLutPoints[bentLutNumPoints] =
+    { 0x40000000u, 0x50000000u, 0xC0000000u };
+
+  ///////////////////////////////////////////////////////////////////////////
   // An image held in memory.  A sample is the 32 bit pattern of an image
   // sample, which is what a .pfm file holds; for a floating point image these
   // are the IEEE-754 single precision bit patterns of the samples.
@@ -362,6 +375,8 @@ namespace {
     ui8 type;            // 0, 2, 3 or 4
     bool use_pfm_lut;    // true: the look-up table used for .pfm images
     bool use_narrow_lut = false;  // true: the table of narrowLutPoints
+    bool use_bent_lut = false;    // true: the table of bentLutPoints
+    bool use_exact_inverse = false;   // true: invert the LUT exactly
     bool reversible;     // false: the 9/7 wavelet, true: the 5/3 wavelet
     float qstep;         // the quantization step used with the 9/7 wavelet
   };
@@ -389,7 +404,14 @@ namespace {
     {
       ui32 d_min, d_max, num_points;
       void* points;
-      if (setting.use_narrow_lut)
+      if (setting.use_bent_lut)
+      {  // indexed over the whole range of 32 bit patterns
+        d_min = 0;
+        d_max = 0xFFFFFFFFu;
+        num_points = bentLutNumPoints;
+        points = (void*)bentLutPoints;
+      }
+      else if (setting.use_narrow_lut)
       {  // indexed over the whole range of 32 bit patterns, like the identity
          // table, but its entries only cover the middle half of it
         prepare_narrow_lut();
@@ -414,7 +436,8 @@ namespace {
         points = (void*)identityLutPoints;
       }
       nlt.set_nonlinear_transform(param_nlt::ALL_COMPS, 32, true,
-        d_min, d_max, 32, (ui16)num_points, points, setting.type);
+        d_min, d_max, 32, (ui16)num_points, points, setting.type,
+        setting.use_exact_inverse);
     }
   }
 
@@ -1068,6 +1091,96 @@ TEST(NltTest, RoundTripOfTestImages)
       EXPECT_LT(nlt.max_rel_error, 0.30)
         << image_names[n] << " with nonlinearity " << (int)types[t];
     }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// The inverse of a look-up table is a curve made of straight segments that
+// change slope at the values of the entries of the table.  By default the
+// encoder samples that curve uniformly and interpolates between the samples,
+// which departs from it wherever the value of an entry falls between two
+// samples; that departure does not depend on the quantization step, so it
+// puts a floor under the error of a round trip, however fine the
+// quantization is.  Asking for the exact inverse removes that floor.  The
+// table used here has one entry that the uniformly sampled table misses.
+///////////////////////////////////////////////////////////////////////////////
+TEST(NltTest, ExactInverseOfLutWithBentCurveKeepsSamples)
+{
+  const ui32 width = 128, height = 128;
+  const size_t count = (size_t)width * height;
+
+  // see LutWithNarrowRangeOfEntriesKeepsSamples for how types 2 and 4 index
+  // the table, and how the ramp is turned into samples
+  const si64 bias = ((si64)1 << 31) + 1;
+  const ui8 types[2] = { param_nlt::OJPH_NLT_LUT_STYLE_NLT,
+                         param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT };
+  for (size_t t = 0; t < 2; ++t)
+  {
+    const bool smag = types[t] == param_nlt::OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT;
+
+    // a ramp over the range the entries of the table cover, -2^30 to 2^30
+    test_image img;
+    img.width = width;
+    img.height = height;
+    img.num_comps = 1;
+    img.samples.assign(1, std::vector<si32>(count, 0));
+    for (size_t i = 0; i < count; ++i)
+    {
+      si64 u = -((si64)1 << 30) + ((si64)1 << 31) * (si64)i / (si64)(count - 1);
+      img.samples[0][i] = (si32)((smag && u < 0) ? -u - bias : u);
+    }
+
+    si64 error[2] = { 0, 0 };   // the largest error of each inverse
+    for (size_t e = 0; e < 2; ++e)
+    {
+      nlt_setting setting;
+      setting.type = types[t];
+      setting.use_pfm_lut = false;
+      setting.use_bent_lut = true;
+      setting.use_exact_inverse = e == 1;
+      setting.reversible = false;
+      setting.qstep = 1e-5f;
+
+      const std::string tag = "nlt_bent_lut_" +
+        std::to_string((int)types[t]) + "_" + std::to_string(e);
+      const std::string filename = std::string(OUT_FILE_DIR) + tag + ".j2c";
+      encode_image(filename, img, setting);
+      test_image decoded;
+      decode_image(filename, decoded, NULL, NULL, NULL, NULL);
+      ASSERT_EQ(decoded.samples.size(), 1u) << tag;
+      ASSERT_EQ(decoded.samples[0].size(), count) << tag;
+
+      // compare in the domain of the table, as in the test above
+      for (size_t i = 0; i < count; ++i)
+      {
+        si64 a = img.samples[0][i], b = decoded.samples[0][i];
+        if (smag && a < 0)
+        {
+          a = -a - bias;
+        }
+        if (smag && b < 0)
+        {
+          b = -b - bias;
+        }
+        const si64 err = a > b ? a - b : b - a;
+        if (err > error[e])
+        {
+          error[e] = err;
+        }
+      }
+    }
+
+    // the exact inverse leaves only the error of the arithmetic, which is a
+    // very small part of the range of the ramp; the uniformly sampled inverse
+    // departs from the curve of the table by a sizeable part of it
+    EXPECT_LT(error[1], (si64)1 << 20)
+      << "nonlinearity " << (int)types[t]
+      << ": with the exact inverse the largest error of the ramp is "
+      << error[1];
+    EXPECT_GT(error[0], error[1])
+      << "nonlinearity " << (int)types[t]
+      << ": the uniformly sampled inverse is not less accurate than the exact "
+      << "inverse; errors are " << error[0] << " and " << error[1];
   }
 }
 
