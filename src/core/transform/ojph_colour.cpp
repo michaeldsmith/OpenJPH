@@ -355,8 +355,9 @@ namespace ojph {
     }
 
     //////////////////////////////////////////////////////////////////////////
-    // The exact inverse of a LUT style nonlinearity, applied to a value t in
-    // [0, 1].  The LUT maps the coded value fd_min + k * dt to the LUT point
+    // The exact piecewise-linear inverse of a LUT style nonlinearity, up to
+    // floating point rounding, applied to a value t in [0, 1].  The LUT maps
+    // the coded value fd_min + k * dt to the LUT point
     // p[k], so the inverse maps a t between p[k] and p[k + 1] back onto that
     // interval of coded values; a binary search finds k.  Values outside the
     // range of the LUT points are clipped to it.
@@ -416,12 +417,15 @@ namespace ojph {
       float* dp = dst_line->f32;
       if (rec->is_signed())
       {
-        const si32 bias = (si32)((1ULL << (rec->get_bit_depth() - 1)) + 1);
+        // the negated sample and the bias are both too large for si32 at
+        // a bit depth of 32, although their difference is not; the
+        // subtraction below is done in si64
+        const si64 bias = (si64)((1ULL << (rec->get_bit_depth() - 1)) + 1);
         for (int i = (int)width; i > 0; --i) {
           si32 v = *sp++;
           if (NLT_TYPE == 4)
           {
-            v = (v >= 0) ? v : (- v - bias);
+            v = (v >= 0) ? v : (si32)(- (si64)v - bias);
           }
           float t = (float)v * mul + 0.5f;  // convert to [0, 1]
           *dp++ = exact_nlt_inverse(t, p, n, div, fd_min, dt,

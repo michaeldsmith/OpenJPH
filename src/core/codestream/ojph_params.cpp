@@ -2498,25 +2498,29 @@ namespace ojph {
       else
         assert(0);
 
-      // find ceil of the ratio to a power of 2
-      ui32 ienc_pnts;
-      float enc_pnts = std::ceil((float)(v_max-v_min) / (float)(smallest_gap));
-      // The check below can be skipped if using the exact inverse, 
-      // since no tables are built in that case, the LUT is used directly.
-      if (enc_pnts > 8192.0f && !use_exact_inverse)
+      // no encoding LUT is built for the exact inverse, so its size is
+      // not worked out here either
+      ui32 ienc_pnts = 0;
+      if (!use_exact_inverse)
       {
-        ienc_pnts = 8192;
-        OJPH_WARN(0x000501A1, "Encoding with LUT is performed with an "
-          "encoding LUT, derived from the LUT you provided; however, "
-          "because the provided LUT has almost flat segment or segments, "
-          "these are hard to invert.  We are limiting the encoding "
-          "LUT to 8192 entries, which means that some segment of the "
-          "LUT table might be ignored during encoding.")
-      }
-      else {
-        ienc_pnts = (ui32)enc_pnts;
-        ienc_pnts = 32 - count_leading_zeros(ienc_pnts);
-        ienc_pnts = 1u << ienc_pnts;
+        // find ceil of the ratio to a power of 2
+        float enc_pnts =
+          std::ceil((float)(v_max-v_min) / (float)(smallest_gap));
+        if (enc_pnts > 8192.0f)
+        {
+          ienc_pnts = 8192;
+          OJPH_WARN(0x000501A1, "Encoding with LUT is performed with an "
+            "encoding LUT, derived from the LUT you provided; however, "
+            "because the provided LUT has almost flat segment or segments, "
+            "these are hard to invert.  We are limiting the encoding "
+            "LUT to 8192 entries, which means that some segment of the "
+            "LUT table might be ignored during encoding.")
+        }
+        else {
+          ienc_pnts = (ui32)enc_pnts;
+          ienc_pnts = 32 - count_leading_zeros(ienc_pnts);
+          ienc_pnts = 1u << ienc_pnts;
+        }
       }
 
       ui32 len = p->rec.cal_store_size_for_encoding(ienc_pnts);
