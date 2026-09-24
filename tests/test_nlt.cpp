@@ -436,9 +436,9 @@ namespace {
         points = (void*)identityLutPoints;
       }
       nlt.set_nonlinear_transform(param_nlt::ALL_COMPS, 32, true,
-        d_min, d_max, 32, (ui16)num_points, points, setting.type,
-        setting.use_exact_inverse);
+        d_min, d_max, 32, (ui16)num_points, points, setting.type);
     }
+    cs.set_use_exact_nlt_inverse(setting.use_exact_inverse);
   }
 
   ///////////////////////////////////////////////////////////////////////////

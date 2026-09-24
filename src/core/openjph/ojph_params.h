@@ -367,15 +367,11 @@ namespace ojph {
      * @param nlt_type: desired non-linearity from enum nonlinearity, only
      *        OJPH_NLT_LUT_STYLE_NLT and OJPH_NLT_BINARY_COMPLEMENT_PLUS_LUT
      *        are allowed
-     * @param use_exact_inverse: selects how the encoder inverts the LUT.
-     *        false is the default, which is fast but approximate; true is
-     *        slower, and exact up to floating point rounding.
      */
     void set_nonlinear_transform(ui32 comp_num,
                                  ui8 decoded_bit_depth, bool decoded_signedness,
                                  ui32 d_min, ui32 d_max, ui8 pt_val,
-                                 ui16 num_points, void* points, ui8 nl_type,
-                                 bool use_exact_inverse = false);
+                                 ui16 num_points, void* points, ui8 nl_type);
 
     /*************************************************************************
      * @brief get the nonlinearity type associated with comp_num, which

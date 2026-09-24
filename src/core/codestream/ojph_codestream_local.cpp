@@ -90,6 +90,7 @@ namespace ojph {
       profile = OJPH_PN_UNDEFINED;
       tilepart_div = OJPH_TILEPART_NO_DIVISIONS;
       need_tlm = false;
+      use_exact_nlt_inverse = false;
 
       cur_comp = 0;
       cur_line = 0;
